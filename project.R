@@ -43,20 +43,56 @@ over_under <- function(a){
 
 inverse <- function(a){1/as.numeric(a)}
 
-OverUnder <- matches[, over_under(score), by = 1:nrow(matches)]
-matches$over_under <- OverUnder$V1
-HomeDrawAway <- matches[, winner(score), by = 1:nrow(matches)]
-matches$winner <- HomeDrawAway$V1
-Probabilities <- first[, inverse(odd), by = 1:nrow(first)]
-first$probs <- Probabilities$V1
-Probabilities2 <- last[, inverse(odd), by = 1:nrow(last)]
-last$probs <- Probabilities2$V1
-rm(HomeDrawAway, OverUnder, Probabilities, Probabilities2)
+matches$over_under <- matches[, over_under(score), by = 1:nrow(matches)]$V1
+matches$winner <- matches[, winner(score), by = 1:nrow(matches)]$V1
+first$probs <- first[, inverse(odd), by = 1:nrow(first)]$V1
+last$probs <- last[, inverse(odd), by = 1:nrow(last)]$V1
 
-first_shin <- first
-last_shin <- last
+#first_shin <- first
+#last_shin <- last
 first <- first[, norm_prob := probs/sum(probs), by=list(matchid,bookmaker,bettype)]
 last <- last[, norm_prob := probs/sum(probs), by=list(matchid,bookmaker,bettype)]
+
+
+
+### SHIN MODEL
+
+
+fixed_point_iter <- function(l){
+  a = l[1]
+  b = l[2]
+  c = l[3]
+  
+  if(is.na(a) || is.na(b) || is.na(c)){
+    as.double(NA)
+  }
+  else{
+    beta = a + b + c
+    z_current = 0
+    z_new = sqrt(z_current^2+4*(1-z_current)*a*a/beta)+sqrt(z_current^2+4*(1-z_current)*b*b/beta)+sqrt(z_current^2+4*(1-z_current)*c*c/beta)-2
+    i = 1
+    while (abs(z_new - z_current) > 0.001 && i < 21 ){
+      z_current = z_new
+      z_new = sqrt(z_current^2+4*(1-z_current)*a*a/beta)+sqrt(z_current^2+4*(1-z_current)*b*b/beta)+sqrt(z_current^2+4*(1-z_current)*c*c/beta)-2
+      i = i+1
+    }
+    round((z_current+z_new)/2,3)
+  }
+}
+
+
+first <- first[bettype == "1x2", z := fixed_point_iter(probs), by=list(matchid,bookmaker)]
+first <- first[bettype == "1x2", beta := sum(probs) , by=list(matchid,bookmaker)]
+
+shin_prob_calculator <- function(a, b, z){
+  (sqrt(z^2+4*(1-z)*a*a/b)-z)/(2-2*z)
+}
+
+firstdata <- firstdata[, shin.odd1 := shin_prob_calculator(probs.odd1, beta, z) , by=list(matchid,bookmaker)]
+firstdata <- firstdata[, shin.oddX := shin_prob_calculator(probs.oddX, beta, z) , by=list(matchid,bookmaker)]
+firstdata <- firstdata[, shin.odd2 := shin_prob_calculator(probs.odd2, beta, z) , by=list(matchid,bookmaker)]
+
+
 
 # rps = 1/(r-1) * sum{i = 1, over r} (sum{over i} p_j -sum{over i} e_j)^2
 # where r is number of outcomes (3), p_j forecasted prob, e_j actual prob
@@ -122,41 +158,4 @@ average <- merge(average, lastdata[, .(var = mean(RPS_overunder, na.rm = TRUE)),
 colnames(average) <- c("bookmaker","First_HomeAway", "First_OverUnder", "Last_HomeAway", "Last_OverUnder")
 
 
-### SHIN MODEL
-
-
-fixed_point_iter <- function(a,b,c){
-  if(is.na(a) || is.na(b) || is.na(c)){
-    as.double(NA)
-  }
-  else{
-    beta = a + b + c
-    z_current = 0
-    z_new = sqrt(z_current^2+4*(1-z_current)*a*a/beta)+sqrt(z_current^2+4*(1-z_current)*b*b/beta)+sqrt(z_current^2+4*(1-z_current)*c*c/beta)-2
-    i = 1
-    while (abs(z_new - z_current) > 0.001 && i < 21 ){
-      z_current = z_new
-      z_new = sqrt(z_current^2+4*(1-z_current)*a*a/beta)+sqrt(z_current^2+4*(1-z_current)*b*b/beta)+sqrt(z_current^2+4*(1-z_current)*c*c/beta)-2
-      i = i+1
-    }
-    round((z_current+z_new)/2,3)
-  }
-}
-
-firstdata <- first_shin[,.(probs), by = .(matchid, bookmaker, oddtype)]
-firstdata <- reshape(firstdata, idvar = c("matchid", "bookmaker"), timevar = "oddtype", direction = "wide")
-firstdata <- merge(firstdata, matches[, .(matchid, over_under, winner)], by = "matchid")
-# setcolorder(firstdata, c("matchid","bookmaker","norm_prob.odd1","norm_prob.oddX", "norm_prob.odd2","norm_prob.oddover",
-#                         "norm_prob.oddunder", "over_under", "winner"))
-
-firstdata <- firstdata[, z := fixed_point_iter(probs.odd1,probs.odd2,probs.oddX), by=list(matchid,bookmaker)]
-firstdata <- firstdata[, beta := probs.odd1 + probs.odd2 + probs.oddX , by=list(matchid,bookmaker)]
-
-shin_prob_calculator <- function(a, b, z){
-  (sqrt(z^2+4*(1-z)*a*a/b)-z)/(2-2*z)
-}
-
-firstdata <- firstdata[, shin.odd1 := shin_prob_calculator(probs.odd1, beta, z) , by=list(matchid,bookmaker)]
-firstdata <- firstdata[, shin.oddX := shin_prob_calculator(probs.oddX, beta, z) , by=list(matchid,bookmaker)]
-firstdata <- firstdata[, shin.odd2 := shin_prob_calculator(probs.odd2, beta, z) , by=list(matchid,bookmaker)]
 

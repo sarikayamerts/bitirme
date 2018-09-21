@@ -57,7 +57,7 @@ last <- last[, norm_prob := probs/sum(probs), by=list(matchid,bookmaker,bettype)
 
 ### SHIN MODEL
 
-
+#deneme commenti
 fixed_point_iter <- function(l){
   a = l[1]
   b = l[2]

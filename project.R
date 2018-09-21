@@ -10,8 +10,8 @@ setwd("Downloads/Bitirme")
 england_premier_league_details <- read_rds("england_premier_league_details.rds")
 england_premier_league_raw <- read_rds("england_premier_league_raw.rds")
 
-details <- data.table(england_premier_league_details)
-matches <- data.table(england_premier_league_raw)
+details <- data.table(england_premier_league_details)[, c("matchid", "bookmaker", "bettype", "oddtype", "odd"), with = FALSE]
+matches <- data.table(england_premier_league_raw)[, c("matchid", "score"), with = FALSE]
 rm(england_premier_league_details, england_premier_league_raw)
 
 key(details) <- c("matchid", "bookmaker", "oddtype")

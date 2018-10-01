@@ -57,7 +57,6 @@ last <- last[, norm_prob := probs/sum(probs), by=list(matchid,bookmaker,bettype)
 
 ### SHIN MODEL
 
-#deneme commenti
 fixed_point_iter <- function(l){
   a = l[1]
   b = l[2]
@@ -80,19 +79,20 @@ fixed_point_iter <- function(l){
   }
 }
 
-
-first <- first[bettype == "1x2", z := fixed_point_iter(probs), by=list(matchid,bookmaker)]
-first <- first[bettype == "1x2", beta := sum(probs) , by=list(matchid,bookmaker)]
-
 shin_prob_calculator <- function(a, b, z){
   (sqrt(z^2+4*(1-z)*a*a/b)-z)/(2-2*z)
 }
 
-firstdata <- firstdata[, shin.odd1 := shin_prob_calculator(probs.odd1, beta, z) , by=list(matchid,bookmaker)]
-firstdata <- firstdata[, shin.oddX := shin_prob_calculator(probs.oddX, beta, z) , by=list(matchid,bookmaker)]
-firstdata <- firstdata[, shin.odd2 := shin_prob_calculator(probs.odd2, beta, z) , by=list(matchid,bookmaker)]
+first <- first[bettype == "1x2", z := fixed_point_iter(probs), by=list(matchid,bookmaker)]
+first <- first[bettype == "1x2", beta := sum(probs) , by=list(matchid,bookmaker)]
+first <- first[bettype == "1x2", shin_prob := shin_prob_calculator(probs, beta, z) , by=list(matchid,bookmaker)]
 
+last <- last[bettype == "1x2", z := fixed_point_iter(probs), by=list(matchid,bookmaker)]
+last <- last[bettype == "1x2", beta := sum(probs) , by=list(matchid,bookmaker)]
+last <- last[bettype == "1x2", shin_prob := shin_prob_calculator(probs, beta, z) , by=list(matchid,bookmaker)]
 
+first1x2 <- first[bettype == "1x2",c("matchid","bookmaker","oddtype","norm_prob","shin_prob")]
+last1x2 <- last[bettype == "1x2",c("matchid","bookmaker","oddtype","norm_prob","shin_prob")]
 
 # rps = 1/(r-1) * sum{i = 1, over r} (sum{over i} p_j -sum{over i} e_j)^2
 # where r is number of outcomes (3), p_j forecasted prob, e_j actual prob
@@ -100,17 +100,27 @@ firstdata <- firstdata[, shin.odd2 := shin_prob_calculator(probs.odd2, beta, z) 
 # then rps = 1/2 * (0.49+0.04) = 0.265
 # rps(obs = c(1), pred = matrix(c(0.3, 0.5, 0.2), nrow = 1))
 
-# converting odd columns to row in order to use in rps function
-firstdata <- first[,.(norm_prob), by = .(matchid, bookmaker, oddtype)]
-firstdata <- reshape(firstdata, idvar = c("matchid", "bookmaker"), timevar = "oddtype", direction = "wide")
+firstdata <- reshape(first1x2, idvar = c("matchid", "bookmaker"), timevar = "oddtype", direction = "wide")
 firstdata <- merge(firstdata, matches[, .(matchid, over_under, winner)], by = "matchid")
-setcolorder(firstdata, c("matchid","bookmaker","norm_prob.odd1","norm_prob.oddX", "norm_prob.odd2","norm_prob.oddover",
-                         "norm_prob.oddunder", "over_under", "winner"))
-lastdata <- last[,.(norm_prob), by = .(matchid, bookmaker, oddtype)]
-lastdata <- reshape(lastdata, idvar = c("matchid", "bookmaker"), timevar = "oddtype", direction = "wide")
+setcolorder(firstdata, c("matchid","bookmaker","norm_prob.odd1","norm_prob.oddX", "norm_prob.odd2","shin_prob.odd1","shin_prob.oddX", "shin_prob.odd2", "winner"))
+
+lastdata <- reshape(last1x2, idvar = c("matchid", "bookmaker"), timevar = "oddtype", direction = "wide")
 lastdata <- merge(lastdata, matches[, .(matchid, over_under, winner)], by = "matchid")
-setcolorder(lastdata, c("matchid","bookmaker","norm_prob.odd1","norm_prob.oddX", "norm_prob.odd2","norm_prob.oddover",
-                        "norm_prob.oddunder", "over_under", "winner"))
+setcolorder(lastdata, c("matchid","bookmaker","norm_prob.odd1","norm_prob.oddX", "norm_prob.odd2","shin_prob.odd1","shin_prob.oddX", "shin_prob.odd2", "winner"))
+
+                         
+
+# converting odd columns to row in order to use in rps function
+# firstdata <- first[,.(norm_prob), by = .(matchid, bookmaker, oddtype)]
+# firstdata <- reshape(firstdata, idvar = c("matchid", "bookmaker"), timevar = "oddtype", direction = "wide")
+# firstdata <- merge(firstdata, matches[, .(matchid, over_under, winner)], by = "matchid")
+# setcolorder(firstdata, c("matchid","bookmaker","norm_prob.odd1","norm_prob.oddX", "norm_prob.odd2","norm_prob.oddover",
+#                          "norm_prob.oddunder", "over_under", "winner"))
+# lastdata <- last[,.(norm_prob), by = .(matchid, bookmaker, oddtype)]
+# lastdata <- reshape(lastdata, idvar = c("matchid", "bookmaker"), timevar = "oddtype", direction = "wide")
+# lastdata <- merge(lastdata, matches[, .(matchid, over_under, winner)], by = "matchid")
+# setcolorder(lastdata, c("matchid","bookmaker","norm_prob.odd1","norm_prob.oddX", "norm_prob.odd2","norm_prob.oddover",
+#                         "norm_prob.oddunder", "over_under", "winner"))
 
 calculate_rps <- function(a,b,c,d){
   if(is.na(a) || is.na(b) || is.na(c)){
@@ -126,36 +136,56 @@ calculate_rps <- function(a,b,c,d){
   }
 }
 
-calculate_rps2 <- function(a,b,c){
-  if(is.na(a) || is.na(b)){
-    as.double(NA)
-  }
-  else{
-    if (c == "oddover") {c=1}
-    if (c == "oddunder") {c=2}
-    pred = t(matrix(c(a, b)))
-    output <- rps(obs = c(c), pred = pred)
-    output$rps
-  }
-}
+#for over under
+# calculate_rps2 <- function(a,b,c){
+#   if(is.na(a) || is.na(b)){
+#     as.double(NA)
+#   }
+#   else{
+#     if (c == "oddover") {c=1}
+#     if (c == "oddunder") {c=2}
+#     pred = t(matrix(c(a, b)))
+#     output <- rps(obs = c(c), pred = pred)
+#     output$rps
+#   }
+# }
 
-HomeAwayRPS <- firstdata[, calculate_rps(norm_prob.odd1, norm_prob.oddX, norm_prob.odd2, winner), by = 1:nrow(firstdata)]
-firstdata$RPS_homeaway <- HomeAwayRPS$V1
-OverUnderRPS <- firstdata[, calculate_rps2(norm_prob.oddover, norm_prob.oddunder, over_under), by = 1:nrow(firstdata)]
-firstdata$RPS_overunder <- OverUnderRPS$V1
+Basic_RPS <- firstdata[, calculate_rps(norm_prob.odd1, norm_prob.oddX, norm_prob.odd2, winner), by = 1:nrow(firstdata)]
+firstdata$Basic_RPS <- Basic_RPS$V1
+Shin_RPS <- firstdata[, calculate_rps(shin_prob.odd1, shin_prob.oddX, shin_prob.odd2, winner), by = 1:nrow(firstdata)]
+firstdata$Shin_RPS <- Shin_RPS$V1
+# OverUnderRPS <- firstdata[, calculate_rps2(norm_prob.oddover, norm_prob.oddunder, over_under), by = 1:nrow(firstdata)]
+# firstdata$RPS_overunder <- OverUnderRPS$V1
 
-HomeAwayRPS <- lastdata[, calculate_rps(norm_prob.odd1, norm_prob.oddX, norm_prob.odd2, winner), by = 1:nrow(lastdata)]
-lastdata$RPS_homeaway <- HomeAwayRPS$V1
-OverUnderRPS <- lastdata[, calculate_rps2(norm_prob.oddover, norm_prob.oddunder, over_under), by = 1:nrow(lastdata)]
-lastdata$RPS_overunder <- OverUnderRPS$V1
+Basic_RPS <- lastdata[, calculate_rps(norm_prob.odd1, norm_prob.oddX, norm_prob.odd2, winner), by = 1:nrow(lastdata)]
+lastdata$Basic_RPS <- Basic_RPS$V1
+Shin_RPS <- lastdata[, calculate_rps(shin_prob.odd1, shin_prob.oddX, shin_prob.odd2, winner), by = 1:nrow(lastdata)]
+lastdata$Shin_RPS <- Shin_RPS$V1
+# OverUnderRPS <- lastdata[, calculate_rps2(norm_prob.oddover, norm_prob.oddunder, over_under), by = 1:nrow(lastdata)]
+# lastdata$RPS_overunder <- OverUnderRPS$V1
 
-rm(HomeAwayRPS, OverUnderRPS)
+rm(Basic_RPS, Shin_RPS)
 
-average <- firstdata[, .(var = mean(RPS_homeaway, na.rm = TRUE)), by = bookmaker]
-average <- merge(average, firstdata[, .(var = mean(RPS_overunder, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
-average <- merge(average, lastdata[, .(var = mean(RPS_homeaway, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
-average <- merge(average, lastdata[, .(var = mean(RPS_overunder, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
-colnames(average) <- c("bookmaker","First_HomeAway", "First_OverUnder", "Last_HomeAway", "Last_OverUnder")
+average <- firstdata[, .(var = mean(Basic_RPS, na.rm = TRUE)), by = bookmaker]
+average <- merge(average, firstdata[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
+average <- merge(average, lastdata[, .(var = mean(Basic_RPS, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
+average <- merge(average, lastdata[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
+colnames(average) <- c("bookmaker","First_Basic", "First_Shin", "Last_Basic", "Last_Shin")
+
+
+# Subsetting wrt best bookmaker's odds
+
+# df <- firstdata[bookmaker == "1xBet"]
+# df <- df[complete.cases(df), ]
+# smp_size <- floor(0.75 * nrow(df))
+# set.seed(123)
+# train_ind <- sample(seq_len(nrow(df)), size = smp_size)
+# train <- df[train_ind, ]
+# test <- df[-train_ind, ]
+# 
+# prob_rf <- randomForest(winner ~ ., data =train)
+# df$winner <- as.factor(df$winner)
+
 
 
 

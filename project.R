@@ -24,6 +24,10 @@ last <- details[unique(details[,key(details), with = FALSE]), mult = 'last']
 # matches[matchid == "0Ct34Nck"]
 matches <- matches[score != "POSTP." & score != ""]
 
+#To check if there is any 10-0 score or etc.
+matches <- matches[, len := nchar(score)]
+
+
 winner <- function(a){
   home <- as.numeric(substring(a, 1, 1))
   away <- as.numeric(substring(a, 3, 3))
@@ -45,11 +49,14 @@ inverse <- function(a){1/as.numeric(a)}
 
 matches$over_under <- matches[, over_under(score), by = 1:nrow(matches)]$V1
 matches$winner <- matches[, winner(score), by = 1:nrow(matches)]$V1
-first$probs <- first[, inverse(odd), by = 1:nrow(first)]$V1
-last$probs <- last[, inverse(odd), by = 1:nrow(last)]$V1
+first <- first[,probs := inverse(odd)]
+last <- last[,probs := inverse(odd)]
 
 #first_shin <- first
 #last_shin <- last
+
+### BASIC NORMALIZATION MODEL
+
 first <- first[, norm_prob := probs/sum(probs), by=list(matchid,bookmaker,bettype)]
 last <- last[, norm_prob := probs/sum(probs), by=list(matchid,bookmaker,bettype)]
 
@@ -79,20 +86,27 @@ fixed_point_iter <- function(l){
   }
 }
 
-shin_prob_calculator <- function(a, b, z){
-  (sqrt(z^2+4*(1-z)*a*a/b)-z)/(2-2*z)
+shin_prob_calculator <- function(list){
+  
+  z <- fixed_point_iter(list)
+  beta = list[1] + list[2] + list[3]
+  (sqrt(z^2+4*(1-z)*list*list/beta)-z)/(2-2*z)
 }
 
-first <- first[bettype == "1x2", z := fixed_point_iter(probs), by=list(matchid,bookmaker)]
-first <- first[bettype == "1x2", beta := sum(probs) , by=list(matchid,bookmaker)]
-first <- first[bettype == "1x2", shin_prob := shin_prob_calculator(probs, beta, z) , by=list(matchid,bookmaker)]
+#first <- first[bettype == "1x2", z := fixed_point_iter(probs), by=list(matchid,bookmaker)]
+#first <- first[bettype == "1x2", beta := sum(probs) , by=list(matchid,bookmaker)]
+first <- first[bettype == "1x2", shin_prob := shin_prob_calculator(probs) , by=list(matchid,bookmaker)]
 
-last <- last[bettype == "1x2", z := fixed_point_iter(probs), by=list(matchid,bookmaker)]
-last <- last[bettype == "1x2", beta := sum(probs) , by=list(matchid,bookmaker)]
-last <- last[bettype == "1x2", shin_prob := shin_prob_calculator(probs, beta, z) , by=list(matchid,bookmaker)]
+#last <- last[bettype == "1x2", z := fixed_point_iter(probs), by=list(matchid,bookmaker)]
+#last <- last[bettype == "1x2", beta := sum(probs) , by=list(matchid,bookmaker)]
+last <- last[bettype == "1x2", shin_prob := shin_prob_calculator(probs) , by=list(matchid,bookmaker)]
 
-first1x2 <- first[bettype == "1x2",c("matchid","bookmaker","oddtype","norm_prob","shin_prob")]
-last1x2 <- last[bettype == "1x2",c("matchid","bookmaker","oddtype","norm_prob","shin_prob")]
+#Alttaki iki satýra gerek kalmadý
+#first1x2 <- first[bettype == "1x2",c("matchid","bookmaker","oddtype","norm_prob","shin_prob")]
+#last1x2 <- last[bettype == "1x2",c("matchid","bookmaker","oddtype","norm_prob","shin_prob")]
+
+first1x2 <- first
+last1x2 <- last
 
 # rps = 1/(r-1) * sum{i = 1, over r} (sum{over i} p_j -sum{over i} e_j)^2
 # where r is number of outcomes (3), p_j forecasted prob, e_j actual prob

@@ -4,11 +4,34 @@ library(readr)
 library(graphics)
 library(data.table)
 library(verification)
+library(nnet)
+
+
+
+
+
+# bazı maçlar 1.01 1.01 1.01 açılıyor, booksum'ı 1.50tan büyükse (1x2 için) remove
 
 setwd("Downloads/Bitirme")
+# setwd("/Users/mertsarikaya/Downloads")
+
 
 england_premier_league_details <- read_rds("england_premier_league_details.rds")
 england_premier_league_raw <- read_rds("england_premier_league_raw.rds")
+matches_new <- read_rds("df9b1196-e3cf-4cc7-9159-f236fe738215_matches.rds")
+details_new <- read_rds("df9b1196-e3cf-4cc7-9159-f236fe738215_odd_details.rds")
+
+df <- rbind(read_rds("england_premier_league_details.rds"), 
+            read_rds("england_championship_details.rds"),
+            read_rds("italy_serie_a_details.rds"),
+            read_rds("spain_laliga_details.rds"),
+            read_rds("turkey_super_lig_details.rds"))
+
+df2 <- rbind(read_rds("england_premier_league_raw.rds"), 
+             read_rds("england_championship_raw.rds"),
+             read_rds("italy_serie-a_raw.rds"),
+             read_rds("spain_laliga_raw.rds"),
+             read_rds("turkey_super_lig_raw.rds"))
 
 details <- data.table(england_premier_league_details)[, c("matchid", "bookmaker", "bettype", "oddtype", "odd"), with = FALSE]
 matches <- data.table(england_premier_league_raw)[, c("matchid", "score"), with = FALSE]
@@ -25,7 +48,7 @@ last <- details[unique(details[,key(details), with = FALSE]), mult = 'last']
 matches <- matches[score != "POSTP." & score != ""]
 
 #To check if there is any 10-0 score or etc.
-matches <- matches[, len := nchar(score)]
+matches <- matches[nchar(score) == 3]
 
 
 winner <- function(a){
@@ -101,12 +124,12 @@ first <- first[bettype == "1x2", shin_prob := shin_prob_calculator(probs) , by=l
 #last <- last[bettype == "1x2", beta := sum(probs) , by=list(matchid,bookmaker)]
 last <- last[bettype == "1x2", shin_prob := shin_prob_calculator(probs) , by=list(matchid,bookmaker)]
 
-#Alttaki iki sat�ra gerek kalmad�
-#first1x2 <- first[bettype == "1x2",c("matchid","bookmaker","oddtype","norm_prob","shin_prob")]
-#last1x2 <- last[bettype == "1x2",c("matchid","bookmaker","oddtype","norm_prob","shin_prob")]
+#Alttaki iki sat?ra gerek kalmad?
+first1x2 <- first[bettype == "1x2",c("matchid","bookmaker","oddtype","norm_prob","shin_prob")]
+last1x2 <- last[bettype == "1x2",c("matchid","bookmaker","oddtype","norm_prob","shin_prob")]
 
-first1x2 <- first
-last1x2 <- last
+# first1x2 <- first
+# last1x2 <- last
 
 # rps = 1/(r-1) * sum{i = 1, over r} (sum{over i} p_j -sum{over i} e_j)^2
 # where r is number of outcomes (3), p_j forecasted prob, e_j actual prob
@@ -122,7 +145,7 @@ lastdata <- reshape(last1x2, idvar = c("matchid", "bookmaker"), timevar = "oddty
 lastdata <- merge(lastdata, matches[, .(matchid, over_under, winner)], by = "matchid")
 setcolorder(lastdata, c("matchid","bookmaker","norm_prob.odd1","norm_prob.oddX", "norm_prob.odd2","shin_prob.odd1","shin_prob.oddX", "shin_prob.odd2", "winner"))
 
-                         
+
 
 # converting odd columns to row in order to use in rps function
 # firstdata <- first[,.(norm_prob), by = .(matchid, bookmaker, oddtype)]
@@ -189,20 +212,27 @@ colnames(average) <- c("bookmaker","First_Basic", "First_Shin", "Last_Basic", "L
 
 # Subsetting wrt best bookmaker's odds
 
-df <- firstdata[bookmaker == "1xBet"]
+df <- firstdata[bookmaker == "1xBet" | bookmaker == "Betfair" | bookmaker == "ComeOn" | bookmaker == "888Sport" | bookmaker == "Pinnacle" | bookmaker == "Betsafe"]
 df <- df[complete.cases(df), ]
 df$winner_category <- sapply(as.character(df$winner), switch, "odd1" = 1, "oddX" = 2, "odd2" = 3, USE.NAMES = F)
-df <- subset(df, select = c('shin_prob.odd1', 'shin_prob.oddX', 'shin_prob.odd2', 'winner_category'))
-smp_size <- floor(0.75 * nrow(df))
+df <- subset(df, select = c('matchid', 'bookmaker', 'shin_prob.odd1', 'shin_prob.oddX', 'shin_prob.odd2', 'winner_category'))
+smp_size <- floor(0.70 * nrow(df))
 set.seed(123)
 train_ind <- sample(seq_len(nrow(df)), size = smp_size)
 train <- df[train_ind, ]
 test <- df[-train_ind, ]
 
-mult <- multinom(winner_category ~ ., data =train)
+mult <- multinom(winner_category ~ shin_prob.odd1 + shin_prob.oddX + shin_prob.odd2 , data = train)
 summary(mult)
-pred<-predict(mult,test, "probs")
-pred
+pred<-predict(mult,test)
+#pred<-predict(mult,test, "prob")
 
+table(test$winner_category, pred)
 
+#CLUSTER
+clusters <- hclust(dist(test[, 3:5]))
+plot(clusters)
+clusterCut <- cutree(clusters, 10)
+table(clusterCut, test$winner_category)
+table(clusterCut, test$pred)
 

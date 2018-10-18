@@ -2,11 +2,11 @@
 rm(list = ls())
 
 ### mert's macbook github directory
-setwd("/Users/mertsarikaya/bitirme/")
+#setwd("/Users/mertsarikaya/bitirme/")
 ### mert's windows github directory
 # setwd("")
 ### emre's github directory
-# setwd("")
+ setwd("C:/Users/Hp/Desktop/Bitirme/bitirme")
 
 library(readr)
 library(graphics)

@@ -5,14 +5,19 @@
 ### emre's database directory
 setwd("C:/Users/Hp/Desktop/Bitirme")
 
-england_premier_league_details <- read_rds("england_premier_league_details.rds")
-england_premier_league_raw <- read_rds("england_premier_league_raw.rds")
+matches <- read_rds("df9b1196-e3cf-4cc7-9159-f236fe738215_matches.rds")
+details <- read_rds("df9b1196-e3cf-4cc7-9159-f236fe738215_odd_details.rds")
 
-details <- data.table(england_premier_league_details)[, c("matchid", "bookmaker", "bettype", "oddtype", "odd"), with = FALSE]
-matches <- data.table(england_premier_league_raw)[, c("matchid", "score"), with = FALSE]
-rm(england_premier_league_details, england_premier_league_raw)
+matches <- data.table(matches)[, c("matchId", "score", "home", "away", "date"), with = FALSE]
+matches[,date:=anydate(date)]
 
-key(details) <- c("matchid", "bookmaker", "oddtype")
+next_matches <- matches[is.na(score)]
+matches <- matches[!is.na(score)]
+
+details <- data.table(details)[, c("matchId", "bookmaker", "betType", "oddtype", "odd", "totalhandicap"), with = FALSE]
+
+
+key(details) <- c("matchId", "bookmaker", "oddtype")
 first <- details[unique(details[,key(details), with = FALSE]), mult = 'first']
 last <- details[unique(details[,key(details), with = FALSE]), mult = 'last']
 # to see specific rows
@@ -20,27 +25,28 @@ last <- details[unique(details[,key(details), with = FALSE]), mult = 'last']
 
 # unique(matches$score)
 # matches[matchid == "0Ct34Nck"]
-matches <- matches[score != "POSTP." & score != ""]
 
 matches$over_under <- matches[, over_under(score), by = 1:nrow(matches)]$V1
 matches$winner <- matches[, winner(score), by = 1:nrow(matches)]$V1
 
-first <- first[bettype == "1x2"]
-last <- last[bettype == "1x2"]
+first <- first[betType == "1x2"]
+last <- last[betType == "1x2"]
+
+first[, totalhandicap := NULL]
+last[, totalhandicap := NULL]
 
 
 #calculating implied probabilities
-first <- first[bettype == "1x2",probs := inverse(odd)]
-last <- last[bettype == "1x2",probs := inverse(odd)]
-first <- first[probs != "NA"]
-last <- last[probs != "NA"]
+first <- first[,probs := inverse(odd)]
+last <- last[,probs := inverse(odd)]
+
 
 #calculating booksum to detect abnormalies
-first <- first[, booksum := sum(probs), by=list(matchid,bookmaker)]
-first <- first[booksum <= 1.5 & booksum >= 1.0]
+first <- first[,booksum := sum(probs), by=list(matchId,bookmaker)]
+first <- first[booksum <= 1.15]
 
-last <- last[, booksum := sum(probs), by=list(matchid,bookmaker)]
-last <- last[booksum <= 1.5 & booksum >= 1.0]
+last <- last[, booksum := sum(probs), by=list(matchId,bookmaker)]
+last <- last[booksum <= 1.15]
 
 first[, c("bettype", "odd", "booksum") := NULL]
 last[, c("bettype", "odd", "booksum") := NULL]

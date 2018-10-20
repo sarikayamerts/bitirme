@@ -21,10 +21,10 @@ key(details) <- c("matchId", "bookmaker", "oddtype")
 first <- details[unique(details[,key(details), with = FALSE]), mult = 'first']
 last <- details[unique(details[,key(details), with = FALSE]), mult = 'last']
 # to see specific rows
-# details[matchid == "004f4ING" & bookmaker == "10Bet"] 
+# details[matchId == "004f4ING" & bookmaker == "10Bet"] 
 
 # unique(matches$score)
-# matches[matchid == "0Ct34Nck"]
+# matches[matchId == "0Ct34Nck"]
 
 matches$over_under <- matches[, over_under(score), by = 1:nrow(matches)]$V1
 matches$winner <- matches[, winner(score), by = 1:nrow(matches)]$V1
@@ -42,33 +42,33 @@ last <- last[,probs := inverse(odd)]
 
 
 #calculating booksum to detect abnormalies
-first <- first[,booksum := sum(probs), by=list(matchId,bookmaker)]
+first <- first[,booksum := sum(probs),by=list(matchId,bookmaker)]
 first <- first[booksum <= 1.15]
 
 last <- last[, booksum := sum(probs), by=list(matchId,bookmaker)]
 last <- last[booksum <= 1.15]
 
-first[, c("bettype", "odd", "booksum") := NULL]
-last[, c("bettype", "odd", "booksum") := NULL]
+first[, c("betType", "odd", "booksum") := NULL]
+last[, c("betType", "odd", "booksum") := NULL]
 
 #basic normalization
-first <- first[, norm_prob := probs/sum(probs), by=list(matchid,bookmaker)]
-last <- last[, norm_prob := probs/sum(probs), by=list(matchid,bookmaker)]
+first <- first[, norm_prob := probs/sum(probs), by=list(matchId,bookmaker)]
+last <- last[, norm_prob := probs/sum(probs), by=list(matchId,bookmaker)]
 
 #shin normalization
-first <- first[, shin_prob := round(shin_prob_calculator(probs), digits = 7) , by=list(matchid,bookmaker)]
-last <- last[, shin_prob := round(shin_prob_calculator(probs), digits = 7) , by=list(matchid,bookmaker)]
+first <- first[, shin_prob := round(shin_prob_calculator(probs), digits = 7) , by=list(matchId,bookmaker)]
+last <- last[, shin_prob := round(shin_prob_calculator(probs), digits = 7) , by=list(matchId,bookmaker)]
 
 #widening to apply rps calculation
 first[, c("probs") := NULL]
-first <- reshape(first, idvar = c("matchid", "bookmaker"), timevar = "oddtype", direction = "wide")
-first <- merge(first, matches[, .(matchid, winner)], by = "matchid")
-setcolorder(first, c("matchid","bookmaker","norm_prob.odd1","norm_prob.oddX", "norm_prob.odd2","shin_prob.odd1","shin_prob.oddX", "shin_prob.odd2", "winner"))
+first <- reshape(first, idvar = c("matchId", "bookmaker"), timevar = "oddtype", direction = "wide")
+first <- merge(first, matches[, .(matchId, winner)], by = "matchId")
+setcolorder(first, c("matchId","bookmaker","norm_prob.odd1","norm_prob.oddX", "norm_prob.odd2","shin_prob.odd1","shin_prob.oddX", "shin_prob.odd2", "winner"))
 
 last[, c("probs") := NULL]
-last <- reshape(last, idvar = c("matchid", "bookmaker"), timevar = "oddtype", direction = "wide")
-last <- merge(last, matches[, .(matchid, winner)], by = "matchid")
-setcolorder(last, c("matchid","bookmaker","norm_prob.odd1","norm_prob.oddX", "norm_prob.odd2","shin_prob.odd1","shin_prob.oddX", "shin_prob.odd2", "winner"))
+last <- reshape(last, idvar = c("matchId", "bookmaker"), timevar = "oddtype", direction = "wide")
+last <- merge(last, matches[, .(matchId, winner)], by = "matchId")
+setcolorder(last, c("matchId","bookmaker","norm_prob.odd1","norm_prob.oddX", "norm_prob.odd2","shin_prob.odd1","shin_prob.oddX", "shin_prob.odd2", "winner"))
 
 #rps calculation
 Basic_RPS <- first[, calculate_rps(norm_prob.odd1, norm_prob.oddX, norm_prob.odd2, winner), by = 1:nrow(first)]

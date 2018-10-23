@@ -1,9 +1,9 @@
 ### mert's macbook database directory
-#setwd("/Users/mertsarikaya/Downloads/Bitirme/")
+setwd("/Users/mertsarikaya/Downloads/Bitirme/")
 ### mert's windows database directory
 #setwd("")
 ### emre's database directory
-setwd("C:/Users/Hp/Desktop/Bitirme")
+#setwd("C:/Users/Hp/Desktop/Bitirme")
 
 england_premier_league_details <- read_rds("england_premier_league_details.rds")
 england_premier_league_raw <- read_rds("england_premier_league_raw.rds")

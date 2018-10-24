@@ -36,6 +36,11 @@ source("rps.R")
 # 2 - confusion matrix
 source("model_implementation.R")
 
+### converting dates to seasons
+# functions in this file:
+# 1 - season_calc(date) 
+source("season_calculator.R")
+
 ### importing data and manipulating it to calculate normalized (basic and shin) probabilities for each match & bookmaker
 # datatables in this script:
 # 1 - details (matchid, bookmaker, bettype, oddtype, odd)

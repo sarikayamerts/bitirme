@@ -1,14 +1,15 @@
 ### mert's macbook database directory
-#setwd("/Users/mertsarikaya/Downloads/Bitirme/")
+setwd("/Users/mertsarikaya/Downloads/Bitirme/")
 ### mert's windows database directory
 #setwd("")
 ### emre's database directory
-setwd("C:/Users/Hp/Desktop/Bitirme")
+# setwd("C:/Users/Hp/Desktop/Bitirme")
 
 matches <- read_rds("df9b1196-e3cf-4cc7-9159-f236fe738215_matches.rds")
 details <- read_rds("df9b1196-e3cf-4cc7-9159-f236fe738215_odd_details.rds")
 
 matches <- data.table(matches)[, c("matchId", "score", "home", "away", "date"), with = FALSE]
+matches <- unique(matches)
 matches[,date:=anydate(date)]
 
 next_matches <- matches[is.na(score)]
@@ -28,6 +29,8 @@ last <- details[unique(details[,key(details), with = FALSE]), mult = 'last']
 
 matches$over_under <- matches[, over_under(score), by = 1:nrow(matches)]$V1
 matches$winner <- matches[, winner(score), by = 1:nrow(matches)]$V1
+matches$season <- matches[, season_calc(date), by = 1:nrow(matches)]$V1
+
 
 first <- first[betType == "1x2"]
 last <- last[betType == "1x2"]

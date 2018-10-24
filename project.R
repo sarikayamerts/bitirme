@@ -36,10 +36,19 @@ source("rps.R")
 # 2 - confusion matrix
 source("model_implementation.R")
 
+# 1 - predictions
+# 2 - confusion matrix
+source("model_with_z.R")
+
 ### converting dates to seasons
 # functions in this file:
 # 1 - season_calc(date) 
 source("season_calculator.R")
+
+### calculating insider traders
+# functions in this file:
+# 1 - z_calculator(list) 
+source("z_calculator.R")
 
 ### importing data and manipulating it to calculate normalized (basic and shin) probabilities for each match & bookmaker
 # datatables in this script:
@@ -67,6 +76,12 @@ predictions$RPS <- model_RPS$V1
 rm(model_RPS)
 avg <- mean(predictions$RPS)
 
+multinomial_model_with_z(df)
+model_RPS <- predictions[, calculate_rps(odd1, oddX, odd2, winner), by = 1:nrow(predictions)]
+predictions$RPS <- model_RPS$V1
+rm(model_RPS)
+avg2 <- mean(predictions$RPS)
+#insider trader average RPS te binde bir fark ettirdi.
 
 #CLUSTER
 clusters <- hclust(dist(test[, 3:5]))

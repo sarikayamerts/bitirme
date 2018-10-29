@@ -22,15 +22,15 @@ calculate_rps <- function(a,b,c,d){
 
 
 #for over under
-# calculate_rps2 <- function(a,b,c){
-#   if(is.na(a) || is.na(b)){
-#     as.double(NA)
-#   }
-#   else{
-#     if (c == "oddover") {c=1}
-#     if (c == "oddunder") {c=2}
-#     pred = t(matrix(c(a, b)))
-#     output <- rps(obs = c(c), pred = pred)
-#     output$rps
-#   }
-# }
+calculate_rps2 <- function(a,b,c){
+  if(is.na(a) || is.na(b)){
+    as.double(NA)
+  }
+  else{
+    if (c == "oddover") {c=1}
+    if (c == "oddunder") {c=2}
+    pred = t(matrix(c(a, b)))
+    output <- rps(obs = c(c), pred = pred)
+    output$rps
+  }
+}

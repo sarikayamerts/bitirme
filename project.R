@@ -12,7 +12,7 @@ library(readr)
 library(graphics)
 library(data.table)
 library(verification)
-library(nnet)
+library(glmnet)
 library(anytime) 
 
 ### implementation of shin probability calculation 

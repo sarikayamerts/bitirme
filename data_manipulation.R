@@ -63,19 +63,23 @@ last <- last[, shin_prob := round(shin_prob_calculator(probs), digits = 7) , by=
 #last <- last[, z := z_calculator(probs) , by=list(matchId,bookmaker)]
 
 #widening to apply rps calculation
-first[, c("probs") := NULL]
+first[, c("probs", "norm_prob") := NULL]
 wide_first <- reshape(first, idvar = c("matchId", "bookmaker"), timevar = c("oddtype"), direction = "wide")
 wide_first <- reshape(wide_first, idvar = c("matchId"), timevar = c("bookmaker"), direction = "wide")
-first <- reshape(first, idvar = c("matchId"), timevar = c("bookmaker","oddtype","norm_prob","shin_prob"), direction = "wide")
+wide_first <- merge(wide_first, matches[, .(matchId, winner)], by = "matchId")
+first <- reshape(first, idvar = c("matchId","bookmaker"), timevar = c("oddtype"), direction = "wide")
 first <- merge(first, matches[, .(matchId, winner)], by = "matchId")
-setcolorder(first, c("matchId","bookmaker","z","norm_prob.odd1","norm_prob.oddX", "norm_prob.odd2","shin_prob.odd1","shin_prob.oddX", "shin_prob.odd2", "winner"))
+#setcolorder(first, c("matchId","bookmaker","z","norm_prob.odd1","norm_prob.oddX", "norm_prob.odd2","shin_prob.odd1","shin_prob.oddX", "shin_prob.odd2", "winner"))
 
-last[, c("probs") := NULL]
+
+last[, c("probs", "norm_prob") := NULL]
 wide_last <- reshape(last, idvar = c("matchId", "bookmaker"), timevar = c("oddtype"), direction = "wide")
 wide_last <- reshape(wide_last, idvar = c("matchId"), timevar = c("bookmaker"), direction = "wide")
-last <- reshape(last, idvar = c("matchId", "bookmaker", "z"), timevar = "oddtype", direction = "wide")
+wide_last <- merge(wide_last, matches[, .(matchId, winner)], by = "matchId")
+#last <- reshape(last, idvar = c("matchId", "bookmaker"), timevar = "oddtype", direction = "wide")
+last <- reshape(last, idvar = c("matchId", "bookmaker"), timevar = "oddtype", direction = "wide")
 last <- merge(last, matches[, .(matchId, winner)], by = "matchId")
-setcolorder(last, c("matchId","bookmaker","z","norm_prob.odd1","norm_prob.oddX", "norm_prob.odd2","shin_prob.odd1","shin_prob.oddX", "shin_prob.odd2", "winner"))
+#setcolorder(last, c("matchId","bookmaker","z","norm_prob.odd1","norm_prob.oddX", "norm_prob.odd2","shin_prob.odd1","shin_prob.oddX", "shin_prob.odd2", "winner"))
 
 #rps calculation
 Basic_RPS <- first[, calculate_rps(norm_prob.odd1, norm_prob.oddX, norm_prob.odd2, winner), by = 1:nrow(first)]

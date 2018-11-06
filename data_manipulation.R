@@ -41,11 +41,12 @@ last <- last[,probs := inverse(odd)]
 
 
 #calculating booksum to detect abnormalies
-first <- first[,booksum := sum(probs),by=list(matchId,bookmaker)]
-first <- first[booksum <= 1.15]
+#i am removing these for now (betexchange i kötü görmek istiyorum)
+#first <- first[,booksum := sum(probs),by=list(matchId,bookmaker)]
+#first <- first[booksum <= 1.15]
 
-last <- last[, booksum := sum(probs), by=list(matchId,bookmaker)]
-last <- last[booksum <= 1.15]
+#last <- last[, booksum := sum(probs), by=list(matchId,bookmaker)]
+#last <- last[booksum <= 1.15]
 
 first[, c("betType", "odd", "booksum") := NULL]
 last[, c("betType", "odd", "booksum") := NULL]
@@ -63,22 +64,24 @@ last <- last[, shin_prob := round(shin_prob_calculator(probs), digits = 7) , by=
 #last <- last[, z := z_calculator(probs) , by=list(matchId,bookmaker)]
 
 #widening to apply rps calculation
-first[, c("probs", "norm_prob") := NULL]
+first[, c("probs") := NULL]
+#first[, c("probs", "norm_prob") := NULL]
 wide_first <- reshape(first, idvar = c("matchId", "bookmaker"), timevar = c("oddtype"), direction = "wide")
 wide_first <- reshape(wide_first, idvar = c("matchId"), timevar = c("bookmaker"), direction = "wide")
 wide_first <- merge(wide_first, matches[, .(matchId, winner)], by = "matchId")
 first <- reshape(first, idvar = c("matchId","bookmaker"), timevar = c("oddtype"), direction = "wide")
-first <- merge(first, matches[, .(matchId, winner)], by = "matchId")
+first <- merge(first, matches[, .(matchId, winner, season)], by = "matchId")
 #setcolorder(first, c("matchId","bookmaker","z","norm_prob.odd1","norm_prob.oddX", "norm_prob.odd2","shin_prob.odd1","shin_prob.oddX", "shin_prob.odd2", "winner"))
 
 
-last[, c("probs", "norm_prob") := NULL]
+last[, c("probs") := NULL]
+#last[, c("probs", "norm_prob") := NULL]
 wide_last <- reshape(last, idvar = c("matchId", "bookmaker"), timevar = c("oddtype"), direction = "wide")
 wide_last <- reshape(wide_last, idvar = c("matchId"), timevar = c("bookmaker"), direction = "wide")
 wide_last <- merge(wide_last, matches[, .(matchId, winner)], by = "matchId")
 #last <- reshape(last, idvar = c("matchId", "bookmaker"), timevar = "oddtype", direction = "wide")
 last <- reshape(last, idvar = c("matchId", "bookmaker"), timevar = "oddtype", direction = "wide")
-last <- merge(last, matches[, .(matchId, winner)], by = "matchId")
+last <- merge(last, matches[, .(matchId, winner, season)], by = "matchId")
 #setcolorder(last, c("matchId","bookmaker","z","norm_prob.odd1","norm_prob.oddX", "norm_prob.odd2","shin_prob.odd1","shin_prob.oddX", "shin_prob.odd2", "winner"))
 
 #rps calculation

@@ -14,6 +14,7 @@ library(data.table)
 library(verification)
 library(glmnet)
 library(anytime) 
+library(plotly)
 
 ### implementation of shin probability calculation 
 # functions in this file:
@@ -59,12 +60,41 @@ source("z_calculator.R")
 source("data_manipulation.R")
 
 ### Calculating average RPS's for each bookmakers (smaller values are better)
-average <- first[, .(var = mean(Basic_RPS, na.rm = TRUE)), by = bookmaker]
-average <- merge(average, first[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
-average <- merge(average, last[, .(var = mean(Basic_RPS, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
-average <- merge(average, last[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
-colnames(average) <- c("bookmaker","First_Basic", "First_Shin", "Last_Basic", "Last_Shin")
+# average <- first[, .(var = mean(Basic_RPS, na.rm = TRUE)), by = bookmaker]
+# average <- merge(average, first[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
+# average <- merge(average, last[, .(var = mean(Basic_RPS, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
+# average <- merge(average, last[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
+# colnames(average) <- c("bookmaker","First_Basic", "First_Shin", "Last_Basic", "Last_Shin")
+# eskiden böyleydi season ekledik şimdi
+average <- first[, .(var = mean(Basic_RPS, na.rm = TRUE)), by = c("bookmaker","season")]
+average <- merge(average, first[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker","season")], by = c("bookmaker","season"))
+average <- merge(average, last[, .(var = mean(Basic_RPS, na.rm = TRUE)), by = c("bookmaker","season")], by = c("bookmaker","season"))
+average <- merge(average, last[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker","season")], by = c("bookmaker","season"))
+colnames(average) <- c("bookmaker", "season", "First_Basic", "First_Shin", "Last_Basic", "Last_Shin")
 
+
+plot_ly(x = average$bookmaker, y = average$First_Basic, type = 'scatter', mode = 'markers')
+plot_ly(x = average[bookmaker == "1xBet"]$season,
+        y = average[bookmaker == "1xBet"]$First_Shin, 
+        type = 'scatter', mode = 'lines') %>%
+  layout(title = '1xBet Shin RPS (First)')
+
+
+library(tidyr)
+avg_long <- gather(average, type, rps, First_Basic:Last_Shin, factor_key=TRUE)
+plot_ly(x = avg_long[bookmaker == "1xBet"]$season,
+        y = avg_long[bookmaker == "1xBet"]$rps,
+        color = avg_long[bookmaker == "1xBet"]$type,
+        type = 'scatter', mode = 'lines') %>%
+  layout(title = '1xBet Shin RPS (First)')
+unloadNamespace(tidyr)
+
+
+plot_ly(data = avg_long, x = ~season,
+        y = ~rps,
+        color =~type,
+        type = 'scatter', mode = 'lines') %>%
+  layout(title = '1xBet Shin RPS (First)')
 
 # 
 df <- first[bookmaker == "1xBet" | bookmaker == "Betfair" | bookmaker == "ComeOn" | bookmaker == "888Sport" | bookmaker == "Pinnacle" | bookmaker == "Betsafe"]

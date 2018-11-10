@@ -60,11 +60,11 @@ source("z_calculator.R")
 source("data_manipulation.R")
 
 ### Calculating average RPS's for each bookmakers (smaller values are better)
-# average <- first[, .(var = mean(Basic_RPS, na.rm = TRUE)), by = bookmaker]
-# average <- merge(average, first[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
-# average <- merge(average, last[, .(var = mean(Basic_RPS, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
-# average <- merge(average, last[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
-# colnames(average) <- c("bookmaker","First_Basic", "First_Shin", "Last_Basic", "Last_Shin")
+average <- first[, .(var = mean(Basic_RPS, na.rm = TRUE)), by = bookmaker]
+average <- merge(average, first[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
+average <- merge(average, last[, .(var = mean(Basic_RPS, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
+average <- merge(average, last[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
+colnames(average) <- c("bookmaker","First_Basic", "First_Shin", "Last_Basic", "Last_Shin")
 # eskiden böyleydi season ekledik şimdi
 average <- first[, .(var = mean(Basic_RPS, na.rm = TRUE)), by = c("bookmaker","season")]
 average <- merge(average, first[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker","season")], by = c("bookmaker","season"))

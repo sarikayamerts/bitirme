@@ -17,13 +17,14 @@ matches <- matches[!is.na(score)]
 
 details <- data.table(details)[, c("matchId", "bookmaker", "betType", "oddtype", "odd", "totalhandicap"), with = FALSE]
 details <- details[betType == '1x2']
-details <- details[betType != 'Betfair Exchange']
+details <- details[bookmaker != 'Betfair Exchange']
 
 key(details) <- c("matchId", "bookmaker", "oddtype")
 first <- details[unique(details[,key(details), with = FALSE]), mult = 'first']
 last <- details[unique(details[,key(details), with = FALSE]), mult = 'last']
 # to see specific rows
 # details[matchId == "004f4ING" & bookmaker == "10Bet"] 
+
 
 # unique(matches$score)
 # matches[matchId == "0Ct34Nck"]
@@ -59,6 +60,16 @@ last <- last[, norm_prob := probs/sum(probs), by=list(matchId,bookmaker)]
 #shin normalization
 first <- first[, shin_prob := round(shin_prob_calculator(probs), digits = 7) , by=list(matchId,bookmaker)]
 last <- last[, shin_prob := round(shin_prob_calculator(probs), digits = 7) , by=list(matchId,bookmaker)]
+
+changes <- merge(first[,c(1,2,3,6)], last[,c(1,2,3,6)], c('matchId', 'bookmaker', 'oddtype'))
+changes$change <- (changes$shin_prob.y - changes$shin_prob.x)/changes$shin_prob.x
+changes <- changes[order(changes$change, decreasing = TRUE),]
+changes_matches <- changes[, .(avg_change = mean(change)), by = c("matchId", "oddtype")]
+changes_matches <- changes_matches[order(changes_matches$avg_change, decreasing = TRUE),]
+changes_matches <- reshape(changes_matches, idvar = c("matchId"), timevar = c("oddtype"), direction = "wide")
+changes_matches <- merge(changes_matches, matches[,c(1,2)], 'matchId')
+changes_matches <- merge(changes_matches, changes[, .(avg_change_total = mean(change)), by = c("matchId")], 'matchId')
+setcolorder(changes_matches, c("matchId", "avg_change.odd1", "avg_change.oddX", "avg_change.odd2", "score", "avg_change_total"))
 
 #insider traders calculating
 #first <- first[, z := z_calculator(probs) , by=list(matchId,bookmaker)]

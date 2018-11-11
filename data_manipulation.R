@@ -17,6 +17,7 @@ matches <- matches[!is.na(score)]
 
 details <- data.table(details)[, c("matchId", "bookmaker", "betType", "oddtype", "odd", "totalhandicap"), with = FALSE]
 details <- details[betType == '1x2']
+details <- details[betType != 'Betfair Exchange']
 
 key(details) <- c("matchId", "bookmaker", "oddtype")
 first <- details[unique(details[,key(details), with = FALSE]), mult = 'first']

@@ -20,4 +20,4 @@ plot_ly(x = average$bookmaker,y = average$First_Basic, name = "First_Basic",  ty
   add_trace(y = average$First_Shin, name = 'First Shin') %>%
   add_trace(y = average$Last_Basic, name = 'Last Basic') %>%
   add_trace(y = average$Last_Shin, name = 'Last Shin') %>%
-  layout(yaxis = list(title = 'RPS', range = c(0.18, 0.20)), barmode = 'group')
+  layout(yaxis = list(title = 'RPS', range = c(0.188, 0.195)), barmode = 'group')

@@ -44,14 +44,14 @@ last <- last[,probs := inverse(odd)]
 
 #calculating booksum to detect abnormalies
 #i am removing these for now (betexchange i kötü görmek istiyorum)
-#first <- first[,booksum := sum(probs),by=list(matchId,bookmaker)]
+first <- first[,booksum := sum(probs),by=list(matchId,bookmaker)]
 #first <- first[booksum <= 1.15]
 
-#last <- last[, booksum := sum(probs), by=list(matchId,bookmaker)]
+last <- last[, booksum := sum(probs), by=list(matchId,bookmaker)]
 #last <- last[booksum <= 1.15]
 
-first[, c("betType", "odd", "booksum") := NULL]
-last[, c("betType", "odd", "booksum") := NULL]
+first[, c("betType", "odd") := NULL]
+last[, c("betType", "odd") := NULL]
 
 #basic normalization
 first <- first[, norm_prob := probs/sum(probs), by=list(matchId,bookmaker)]
@@ -88,6 +88,7 @@ wide_first <- merge(wide_first, matches[, .(matchId, winner)], by = "matchId")
 first <- reshape(first, idvar = c("matchId","bookmaker"), timevar = c("oddtype"), direction = "wide")
 first <- merge(first, matches[, .(matchId, winner, season)], by = "matchId")
 #setcolorder(first, c("matchId","bookmaker","z","norm_prob.odd1","norm_prob.oddX", "norm_prob.odd2","shin_prob.odd1","shin_prob.oddX", "shin_prob.odd2", "winner"))
+booksum_df <- first[,c(2,3,13)]
 
 
 last[, c("probs") := NULL]

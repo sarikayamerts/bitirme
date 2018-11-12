@@ -61,6 +61,10 @@ last <- last[, norm_prob := probs/sum(probs), by=list(matchId,bookmaker)]
 first <- first[, shin_prob := round(shin_prob_calculator(probs), digits = 7) , by=list(matchId,bookmaker)]
 last <- last[, shin_prob := round(shin_prob_calculator(probs), digits = 7) , by=list(matchId,bookmaker)]
 
+
+prob_comparison <- reshape(first[,c(1,2,3,6)], idvar = c("matchId","bookmaker"), timevar = c("oddtype"), direction = "wide")
+prob_comparison <- rbind(prob_comparison, reshape(last[,c(1,2,3,6)], idvar = c("matchId","bookmaker"), timevar = c("oddtype"), direction = "wide"))
+
 changes <- merge(first[,c(1,2,3,6)], last[,c(1,2,3,6)], c('matchId', 'bookmaker', 'oddtype'))
 changes$change <- (changes$shin_prob.y - changes$shin_prob.x)/changes$shin_prob.x
 changes <- changes[order(changes$change, decreasing = TRUE),]

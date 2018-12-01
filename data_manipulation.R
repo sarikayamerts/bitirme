@@ -44,10 +44,10 @@ last <- last[,probs := inverse(odd)]
 
 #calculating booksum to detect abnormalies
 #i am removing these for now (betexchange i kötü görmek istiyorum)
-first <- first[,booksum := sum(probs),by=list(matchId,bookmaker)]
+#first <- first[,booksum := sum(probs),by=list(matchId,bookmaker)]
 #first <- first[booksum <= 1.15]
 
-last <- last[, booksum := sum(probs), by=list(matchId,bookmaker)]
+#last <- last[, booksum := sum(probs), by=list(matchId,bookmaker)]
 #last <- last[booksum <= 1.15]
 
 first[, c("betType", "odd") := NULL]
@@ -62,8 +62,8 @@ first <- first[, shin_prob := round(shin_prob_calculator(probs), digits = 7) , b
 last <- last[, shin_prob := round(shin_prob_calculator(probs), digits = 7) , by=list(matchId,bookmaker)]
 
 
-prob_comparison <- reshape(first[,c(1,2,3,6)], idvar = c("matchId","bookmaker"), timevar = c("oddtype"), direction = "wide")
-prob_comparison <- rbind(prob_comparison, reshape(last[,c(1,2,3,6)], idvar = c("matchId","bookmaker"), timevar = c("oddtype"), direction = "wide"))
+#prob_comparison <- reshape(first[,c(1,2,3,6)], idvar = c("matchId","bookmaker"), timevar = c("oddtype"), direction = "wide")
+#prob_comparison <- rbind(prob_comparison, reshape(last[,c(1,2,3,6)], idvar = c("matchId","bookmaker"), timevar = c("oddtype"), direction = "wide"))
 
 changes <- merge(first[,c(1,2,3,6)], last[,c(1,2,3,6)], c('matchId', 'bookmaker', 'oddtype'))
 changes$change <- (changes$shin_prob.y - changes$shin_prob.x)/changes$shin_prob.x
@@ -79,9 +79,13 @@ setcolorder(changes_matches, c("matchId", "avg_change.odd1", "avg_change.oddX", 
 #first <- first[, z := z_calculator(probs) , by=list(matchId,bookmaker)]
 #last <- last[, z := z_calculator(probs) , by=list(matchId,bookmaker)]
 
+#Last Shin'e göre en iyileri: Betfair, ComeOn, 888sport, 188BET, 12bet, bet365, SBOBET, 1xBet, bet-at-home, Pinnacle
+#First Shin'e göre en iyileri: 1xBet, Betfair, ComeOn, 888sport, Betsafe, Betsson, Pinnacle
+
 #widening to apply rps calculation
-first[, c("probs") := NULL]
-#first[, c("probs", "norm_prob") := NULL]
+#first[, c("probs") := NULL]
+first[, c("probs", "norm_prob") := NULL]
+first <- first[bookmaker %in% c('Betfair', 'ComeOn', '888sport', '1xBet', '188BET')]
 wide_first <- reshape(first, idvar = c("matchId", "bookmaker"), timevar = c("oddtype"), direction = "wide")
 wide_first <- reshape(wide_first, idvar = c("matchId"), timevar = c("bookmaker"), direction = "wide")
 wide_first <- merge(wide_first, matches[, .(matchId, winner)], by = "matchId")

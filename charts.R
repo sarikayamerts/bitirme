@@ -1,8 +1,8 @@
-plot_ly(data = first[season == '2016-2017'], 
+plot_ly(data = last[season == '2017-2018'], 
         y = ~Shin_RPS, 
         color = ~bookmaker, 
         type = "box") %>%
-  layout(title = "Boxplot of Bookmakers' RPS in 2016-2017 Season")
+  layout(title = "Boxplot of Bookmakers' RPS 2017-2018 Season")
 
 plot_ly(data = first, x = ~bookmaker, y = ~Shin_RPS, color = ~season, type = "box") %>%
   layout(boxmode = "group", 
@@ -16,13 +16,13 @@ plot_ly(data = last, y = ~bookmaker, x = ~Shin_RPS, color = ~season, type = "box
          xaxis = list(range = c(0, 0.28)),
          title = 'RPS Values of Bookmakes, by Season')
   
-plot_ly(x = average$bookmaker,y = average$First_Basic, name = "Basic",  type = "bar") %>%
+  plot_ly(y = average$bookmaker,x = average$Last_Shin, name = "Shin",  type = "bar") %>%
   #add_trace(y = average$First_Shin, name = 'First Shin') %>%
   #add_trace(y = average$Last_Basic, name = 'Last Basic') %>%
-  add_trace(y = average$First_Shin, name = 'Shin') %>%
-  layout(yaxis = list(title = 'RPS', range = c(0.186, 0.196)), barmode = 'group')
+  add_trace(x = average$Last_Basic, name = 'Basic') %>%
+  layout(xaxis = list(title = 'RPS', range = c(0.188, 0.194)), barmode = 'group')
 
-plot_ly(x = average[bookmaker == '888sport']$season,y = average[bookmaker == '888sport']$First_Basic, name = "Basic",  type = "bar")
+plot_ly(x = average[bookmaker == 'Betfair']$season,y = average[bookmaker == 'Betfair']$First_Basic, name = "Basic",  type = "bar")
 
 plot_ly(x = average$season,y = average$First_Shin, color = average$bookmaker, type = "bar") %>%
   layout(yaxis = list(title = 'RPS', range = c(0.1, 0.23)), barmode = 'group')
@@ -55,6 +55,7 @@ colnames(shin_basic) <- c('bookmaker', 'Basic Normalization', 'Shin Normalizatio
 
 
 plot_ly(x = changes$change, type = 'histogram')
+
 plot_ly(x = changes$shin_prob.x, y = changes$shin_prob.y)  %>%
   layout(title = 'Changes In Implied Probabilities',
          yaxis = list(title = 'Last Probabilities'),

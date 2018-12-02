@@ -1,4 +1,4 @@
-train_glmnet <- function(train_features, test_features, not_included_feature_indices, alpha=1,nlambda=50, tune_lambda=TRUE,nofReplications=2,nFolds=10,trace=T){
+train_glmnet <- function(train_features, test_features, not_included_feature_indices, alpha=1,nlambda=50, tune_lambda=TRUE,nofReplications=2,nFolds=10,trace=T, max = F){
   
   set.seed(1)
   
@@ -8,6 +8,11 @@ train_glmnet <- function(train_features, test_features, not_included_feature_ind
   train_class <- as.numeric(glm_features$winner)
   glm_train_data <- glm_features[,-not_included_feature_indices,with=F]
   glm_test_data <- test_features[,-not_included_feature_indices,with=F]
+  if (max) {
+    glm_train_data$max <- do.call(pmax, glm_train_data)
+    glm_test_data$max <- do.call(pmax, glm_test_data)    
+  }
+
   if(tune_lambda){
     # to set lambda parameter, cross-validation will be performed and lambda is selected based on RPS performance
     

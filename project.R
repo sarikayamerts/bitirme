@@ -17,13 +17,15 @@ library(TunePareto)
 library(anytime) 
 library(plotly)
 
-testStart=as.Date('2017-07-15')
-trainStart=as.Date('2010-08-13')
-
 ### implementation of shin probability calculation 
 # functions in this file:
 # 1 - shin_prob_calculator(list)
 source("shin.R")
+
+### sets directory easily
+# 1 - set_directory(name)
+# name can be "mert", "emre", "mert_data", "emre_data"
+source("set_directory.R")
 
 ### implementation of converting match results from string to {over, under, 1, X, 2} types of outcome
 # functions in this file:
@@ -55,10 +57,9 @@ source("converter.R")
 # 5 - next_matches (matchId, score, home, away, date)
 source("get_dataframes.R")
 
-### handle missing odds
+### handle missing odds and subsetting data
 # 
 source("missingvalues.R")
-
 
 ### converting odds to basic and shin probabilities
 # changes first and last dataframes
@@ -77,9 +78,27 @@ source("calculate_rps.R")
 source("bookmaker_comparison.R")
 
 ### Creating training and test data
+
+testStart=as.Date('2017-07-15')
+trainStart=as.Date('2010-08-13')
 train_features <- wide_last[date>=trainStart & date<testStart] 
 test_features <- wide_last[date>=testStart] 
-not_included_feature_indices = c(1,11,12,13,14)
+n <- ncol(train_features)
+not_included_feature_indices = c(1,n-3,n-2,n-1,n)
+# or
+train_features <- wide_last[season != "2018-2019"]
+test_features <- wide_last[season == "2018-2019"]
+n <- ncol(train_features)
+not_included_feature_indices = c(1,n-3,n-2,n-1,n)
+# or 
+start = '2018-11-24'
+end = '2018-11-26'
+test_features <- wide_last[date >= start & date <= end] 
+train_features <- wide_last[date < start] 
+n <- ncol(train_features)
+not_included_feature_indices = c(1,n-3,n-2,n-1,n)
+
+
 
 ### construction of model (not ready)
 # functions in this file:
@@ -87,11 +106,15 @@ not_included_feature_indices = c(1,11,12,13,14)
 source("train_models.R")
 
 ### Run glmnet on train data with tuning lambda parameter based on RPS and return predictions based on lambda with minimum RPS
-predictions=train_glmnet(train_features, test_features,not_included_feature_indices, alpha=1,nlambda=50, tune_lambda=TRUE,nofReplications=2,nFolds=10,trace=T)
+predictions <- train_glmnet(train_features, test_features,not_included_feature_indices, alpha=1,nlambda=50, tune_lambda=TRUE,nofReplications=2,nFolds=10,trace=T,max=FALSE)
 
-predict = predictions[["predictions"]]
-predict = predict[, RPS := calculate_rps(odd1,oddX,odd2,winner), by = 1:nrow(predict)]
-averageRPS = mean(predict$RPS)
+predict <- predictions[["predictions"]]
+predict <- predict[, RPS := calculate_rps(odd1,oddX,odd2,winner), by = 1:nrow(predict)]
+averageRPS <- mean(predict$RPS)
+averageRPS
+testRPS <- last[matchId %in% predict$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
+testRPS <- testRPS[order(testRPS$var),]
+testRPS
 
 ### importing data and manipulating it to calculate normalized (basic and shin) probabilities for each match & bookmaker
 # datatables in this script:

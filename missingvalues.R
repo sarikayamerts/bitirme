@@ -11,6 +11,6 @@
 #details = details[,c('matchId',columnsToKeep),with=F]
 
 bookiesToKeep = c("10Bet", "12BET", "188BET", "BetVictor", "Betclic", "Betsafe", "Betsson", "Betway", "Pinnacle", "SBOBET", "Unibet", "WilliamHill", "bet365", "betathome", "bwin")
-bookiesToKeep = c("10Bet", "188BET", "Pinnacle", "Betfair")
+bookiesToKeep = c("10Bet", "188BET", "Pinnacle")
 first = first[bookmaker %in% bookiesToKeep]
 last = last[bookmaker %in% bookiesToKeep]

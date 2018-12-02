@@ -43,6 +43,10 @@ source("rps.R")
 # 1 - season_calc(date) 
 source("season_calculator.R")
 
+### converting odd1, oddX, odd2 to 1,2,3 and viceversa
+# 1 - convert(arr)
+source("converter.R")
+
 ### read and prepare dataframes (not ready)
 # 1 - details (matchId, bookmaker, oddtype, odd)
 # 2 - matches (matchId, score, home, away, date, over_under, winner, season)
@@ -75,7 +79,7 @@ source("bookmaker_comparison.R")
 ### Creating training and test data
 train_features <- wide_last[date>=trainStart & date<testStart] 
 test_features <- wide_last[date>=testStart] 
-not_included_feature_indices = c(1,12,13,14)
+not_included_feature_indices = c(1,11,12,13,14)
 
 ### construction of model (not ready)
 # functions in this file:
@@ -84,7 +88,6 @@ source("train_models.R")
 
 ### Run glmnet on train data with tuning lambda parameter based on RPS and return predictions based on lambda with minimum RPS
 predictions=train_glmnet(train_features, test_features,not_included_feature_indices, alpha=1,nlambda=50, tune_lambda=TRUE,nofReplications=2,nFolds=10,trace=T)
-levels(df$col)[levels(df$col) == "No contact"] <- "0"
 
 predict = predictions[["predictions"]]
 predict = predict[, RPS := calculate_rps(odd1,oddX,odd2,winner), by = 1:nrow(predict)]

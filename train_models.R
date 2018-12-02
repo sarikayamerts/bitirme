@@ -4,9 +4,7 @@ train_glmnet <- function(train_features, test_features, not_included_feature_ind
   
   # glmnet works with complete data
   glm_features <- train_features[complete.cases(train_features)]
-  glm_features$winner[glm_features$winner == "odd1"] <- 1
-  glm_features$winner[glm_features$winner == "oddX"] <- 2
-  glm_features$winner[glm_features$winner == "odd2"] <- 3
+  glm_features$winner <- convert(glm_features$winner)
   train_class <- as.numeric(glm_features$winner)
   glm_train_data <- glm_features[,-not_included_feature_indices,with=F]
   glm_test_data <- test_features[,-not_included_feature_indices,with=F]
@@ -29,7 +27,7 @@ train_glmnet <- function(train_features, test_features, not_included_feature_ind
         }
         testindices=order(thisReplication[[j]])
         
-        cvtrain=glm_train_data[-testindices]
+        cvtrain=glm_train_data[-testindices]  
         cvtrainclass=train_class[-testindices]   
         cvtest=glm_train_data[testindices]
         cvtestclass=train_class[testindices] 
@@ -39,7 +37,7 @@ train_glmnet <- function(train_features, test_features, not_included_feature_ind
         
         #check order of predictions
         order_of_class=attr(valid_pred,'dimnames')[[2]]
-        new_order=c(which(order_of_class=='odd1'),which(order_of_class=='oddX'),which(order_of_class=='odd2'))
+        new_order=c(which(order_of_class=='1'),which(order_of_class=='2'),which(order_of_class=='3'))
         foldresult=rbindlist(lapply(c(1:length(lambda_sequence)),function(x) { data.table(repl=i,fold=j,lambda=lambda_sequence[x],valid_pred[,new_order,x],result=cvtestclass)}))
         cvresult[[iter]]=foldresult
         iter=iter+1
@@ -47,6 +45,8 @@ train_glmnet <- function(train_features, test_features, not_included_feature_ind
     }
     
     cvresult=rbindlist(cvresult)
+    cvresult$result <- convert(cvresult$result)
+    names(cvresult) <- c("repl", "fold", "lambda", "odd1", "oddX", "odd2", "result")
     
     # creating actual targets for rps calculations
     cvresult[,pred_id:=1:.N]
@@ -54,7 +54,7 @@ train_glmnet <- function(train_features, test_features, not_included_feature_ind
     outcome_for_rps[,pred_id:=NULL]
     outcome_for_rps[is.na(outcome_for_rps)]=0
     outcome_for_rps[outcome_for_rps>0]=1
-    setcolorder(outcome_for_rps,c('odd1','oddX','odd2'))
+    setcolorder(outcome_for_rps, c("odd1", "oddX", "odd2"))
     
     # calculate RPS
     cvresult <- cvresult[, RPS := calculate_rps(odd1, oddX, odd2, result), by = 1:nrow(cvresult)]
@@ -82,13 +82,15 @@ train_glmnet <- function(train_features, test_features, not_included_feature_ind
   # fit final glmnet model with the lambda with minimum error
   final_glmnet_fit = glmnet(as.matrix(glm_train_data),as.factor(train_class),family="multinomial", alpha = alpha,lambda=cvResultsSummary$lambda.min)
   # obtain predictions
-  predicted_probabilities=predict(final_glmnet_fit, as.matrix(glm_test_data), type = "response")
+  predicted_probabilities = predict(final_glmnet_fit, as.matrix(glm_test_data), type = "response")
   
   #check order of predictions
   order_of_class=attr(predicted_probabilities,'dimnames')[[2]]
   new_order=c(which(order_of_class=='odd1'),which(order_of_class=='oddX'),which(order_of_class=='odd2'))
   
-  final_result=data.table(test_features[,list(matchId,winner)],predicted_probabilities[,new_order,1])
+#  final_result=data.table(test_features[,list(matchId,winner)],predicted_probabilities[,new_order,1])
+  final_result=data.table(test_features[,list(matchId,winner)],predicted_probabilities[,,])
+  names(final_result) <- c("matchId", "winner", "odd1", "oddX", "odd2")
   
   return(list(predictions=final_result,cv_stats=cvResultsSummary))
 }

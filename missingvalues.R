@@ -1,0 +1,16 @@
+#Handle missing odds
+#bookieMissingness = first[Match_Date >= trainStart,list(.N,percMiss=sum(is.na(odd))/.N),by=list(bookmaker,betType)]
+#cat("Number of bookmakers with proportion of missings below",pMissThreshold,"since",as.character(trainStart),":",length(bookiesToKeep),"\n")
+
+#nonmissingBookmakers_sinceTestStart = unique(details_melt[Match_Date >= testStart, list(.N,NA_SUM=sum(is.na(odd))),by=list(bookmaker,betType)][NA_SUM==0]$bookmaker)
+#bookiesToKeep = intersect(bookiesToKeep,nonmissingBookmakers_sinceTestStart)
+#cat("Number of bookmakers with no missings since testStart", as.character(testStart), ":", length(bookiesToKeep), "\n")
+
+#details = dcast(feature_odd_details,matchId~oddtype+bookmaker,value.var = c("Odd_Open","Odd_Close"))
+#columnsToKeep = grep(paste(bookiesToKeep,collapse="|"),names(details),value=T)
+#details = details[,c('matchId',columnsToKeep),with=F]
+
+bookiesToKeep = c("10Bet", "12BET", "188BET", "BetVictor", "Betclic", "Betsafe", "Betsson", "Betway", "Pinnacle", "SBOBET", "Unibet", "WilliamHill", "bet365", "betathome", "bwin")
+bookiesToKeep = c("10Bet", "188BET", "Pinnacle", "Betfair")
+first = first[bookmaker %in% bookiesToKeep]
+last = last[bookmaker %in% bookiesToKeep]

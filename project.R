@@ -13,8 +13,12 @@ library(graphics)
 library(data.table)
 library(verification)
 library(glmnet)
+library(TunePareto)
 library(anytime) 
 library(plotly)
+
+testStart=as.Date('2017-07-15')
+trainStart=as.Date('2010-08-13')
 
 ### implementation of shin probability calculation 
 # functions in this file:
@@ -31,25 +35,60 @@ source("match_scores.R")
 ### implementation of ranked probability score
 # functions in this file:
 # 1 - calculate_rps(home, draw, away, actual) 
+# 2 - calculate_rps2(over, under, actual)
 source("rps.R")
-
-# 1 - predictions
-# 2 - confusion matrix
-source("model_implementation.R")
-
-# 1 - predictions
-# 2 - confusion matrix
-source("model_with_z.R")
 
 ### converting dates to seasons
 # functions in this file:
 # 1 - season_calc(date) 
 source("season_calculator.R")
 
-### calculating insider traders
+### read and prepare dataframes (not ready)
+# 1 - details (matchId, bookmaker, oddtype, odd)
+# 2 - matches (matchId, score, home, away, date, over_under, winner, season)
+# 3 - first (matchId, bookmaker, oddtype, odd)
+# 4 - last (matchId, bookmaker, oddtype, odd)
+# 5 - next_matches (matchId, score, home, away, date)
+source("get_dataframes.R")
+
+### handle missing odds
+# 
+source("missingvalues.R")
+
+
+### converting odds to basic and shin probabilities
+# changes first and last dataframes
+source("convert_odds.R")
+
+### reshaping first and last dataframes to feature extraction
+# 1 - wide_first (matchId, shin*basic*bookmaker*oddtype, winner)
+# 2 - wide_last (matchId, shin*basic*bookmaker*oddtype, winner)
+source("reshape.R")
+
+### calculate RPS for all matches using Basic and Shin probs
+# changes in first and last dataframes
+source("calculate_rps.R")
+
+### calculate average RPS for all bookmakers using Basic and Shin probs
+source("bookmaker_comparison.R")
+
+### Creating training and test data
+train_features <- wide_last[date>=trainStart & date<testStart] 
+test_features <- wide_last[date>=testStart] 
+not_included_feature_indices = c(1,12,13,14)
+
+### construction of model (not ready)
 # functions in this file:
-# 1 - z_calculator(list) 
-source("z_calculator.R")
+# 1 - train_glmnet
+source("train_models.R")
+
+### Run glmnet on train data with tuning lambda parameter based on RPS and return predictions based on lambda with minimum RPS
+predictions=train_glmnet(train_features, test_features,not_included_feature_indices, alpha=1,nlambda=50, tune_lambda=TRUE,nofReplications=2,nFolds=10,trace=T)
+levels(df$col)[levels(df$col) == "No contact"] <- "0"
+
+predict = predictions[["predictions"]]
+predict = predict[, RPS := calculate_rps(odd1,oddX,odd2,winner), by = 1:nrow(predict)]
+averageRPS = mean(predict$RPS)
 
 ### importing data and manipulating it to calculate normalized (basic and shin) probabilities for each match & bookmaker
 # datatables in this script:
@@ -57,46 +96,8 @@ source("z_calculator.R")
 # 2 - matches (matchid, score, over_under, winner)
 # 3 - first (matchid, bookmaker, norm_prob.odd1-oddX-odd2, shin_prob.odd1-oddX-odd2, winner)
 # 4 - last (matchid, bookmaker, norm_prob.odd1-oddX-odd2, shin_prob.odd1-oddX-odd2, winner)
-source("data_manipulation.R")
+# source("data_manipulation.R")
 
-### Calculating average RPS's for each bookmakers (smaller values are better)
-average <- first[, .(var = mean(Basic_RPS, na.rm = TRUE)), by = bookmaker]
-average <- merge(average, first[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
-average <- merge(average, last[, .(var = mean(Basic_RPS, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
-average <- merge(average, last[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = bookmaker], by = "bookmaker")
-colnames(average) <- c("bookmaker","First_Basic", "First_Shin", "Last_Basic", "Last_Shin")
-# eskiden böyleydi season ekledik şimdi
-average <- first[, .(var = mean(Basic_RPS, na.rm = TRUE)), by = c("bookmaker","season")]
-average <- merge(average, first[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker","season")], by = c("bookmaker","season"))
-average <- merge(average, last[, .(var = mean(Basic_RPS, na.rm = TRUE)), by = c("bookmaker","season")], by = c("bookmaker","season"))
-average <- merge(average, last[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker","season")], by = c("bookmaker","season"))
-colnames(average) <- c("bookmaker", "season", "First_Basic", "First_Shin", "Last_Basic", "Last_Shin")
-
-
-plot_ly(x = average$bookmaker, y = average$First_Basic, type = 'scatter', mode = 'markers')
-plot_ly(x = average[bookmaker == "1xBet"]$season,
-        y = average[bookmaker == "1xBet"]$First_Shin, 
-        type = 'scatter', mode = 'lines') %>%
-  layout(title = '1xBet Shin RPS (First)')
-
-
-library(tidyr)
-avg_long <- gather(average, type, rps, First_Basic:Last_Shin, factor_key=TRUE)
-plot_ly(x = avg_long[bookmaker == "1xBet"]$season,
-        y = avg_long[bookmaker == "1xBet"]$rps,
-        color = avg_long[bookmaker == "1xBet"]$type,
-        type = 'scatter', mode = 'lines') %>%
-  layout(title = '1xBet Shin RPS (First)')
-unloadNamespace(tidyr)
-
-
-plot_ly(data = avg_long, x = ~season,
-        y = ~rps,
-        color =~type,
-        type = 'scatter', mode = 'lines') %>%
-  layout(title = '1xBet Shin RPS (First)')
-
-# 
 df <- first[bookmaker == "1xBet" | bookmaker == "Betfair" | bookmaker == "ComeOn" | bookmaker == "888Sport" | bookmaker == "Pinnacle" | bookmaker == "Betsafe"]
 df <- df[complete.cases(df), ]
 multinomial_model(df)
@@ -106,17 +107,8 @@ predictions$RPS <- model_RPS$V1
 rm(model_RPS)
 avg <- mean(predictions$RPS)
 
-multinomial_model_with_z(df)
-model_RPS <- predictions[, calculate_rps(odd1, oddX, odd2, winner), by = 1:nrow(predictions)]
-predictions$RPS <- model_RPS$V1
-rm(model_RPS)
-avg2 <- mean(predictions$RPS)
-#insider trader average RPS te binde bir fark ettirdi.
 
-#CLUSTER
-clusters <- hclust(dist(test[, 3:5]))
-plot(clusters)
-clusterCut <- cutree(clusters, 10)
-table(clusterCut, test$winner_category)
-table(clusterCut, test$pred)
+
+
+
 

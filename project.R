@@ -17,6 +17,8 @@ library(TunePareto)
 library(anytime) 
 library(plotly)
 
+##### FUNCTIONS TO BE USED
+
 ### implementation of shin probability calculation 
 # functions in this file:
 # 1 - shin_prob_calculator(list)
@@ -69,6 +71,8 @@ source("convert_odds.R")
 # 1 - wide_first (matchId, shin*basic*bookmaker*oddtype, winner)
 # 2 - wide_last (matchId, shin*basic*bookmaker*oddtype, winner)
 source("reshape.R")
+wide_first <- widening(first, c("888sport", "SBOBET", "bwin", "Pinnacle", "Betclic"))
+wide_last <- widening(last, c("888sport", "SBOBET", "bwin", "Pinnacle", "Betclic"))
 
 ### calculate RPS for all matches using Basic and Shin probs
 # changes in first and last dataframes
@@ -106,7 +110,9 @@ not_included_feature_indices = c(1,n-3,n-2,n-1,n)
 source("train_models.R")
 
 ### Run glmnet on train data with tuning lambda parameter based on RPS and return predictions based on lambda with minimum RPS
-predictions <- train_glmnet(train_features, test_features,not_included_feature_indices, alpha=1,nlambda=50, tune_lambda=TRUE,nofReplications=2,nFolds=10,trace=T,max=FALSE)
+predictions <- train_glmnet(train_features, test_features,not_included_feature_indices, 
+                            alpha=1,nlambda=50, tune_lambda=TRUE,
+                            nofReplications=2,nFolds=10,trace=T,max=FALSE)
 
 predict <- predictions[["predictions"]]
 predict <- predict[, RPS := calculate_rps(odd1,oddX,odd2,winner), by = 1:nrow(predict)]
@@ -115,26 +121,3 @@ averageRPS
 testRPS <- last[matchId %in% predict$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
 testRPS <- testRPS[order(testRPS$var),]
 testRPS
-
-### importing data and manipulating it to calculate normalized (basic and shin) probabilities for each match & bookmaker
-# datatables in this script:
-# 1 - details (matchid, bookmaker, bettype, oddtype, odd)
-# 2 - matches (matchid, score, over_under, winner)
-# 3 - first (matchid, bookmaker, norm_prob.odd1-oddX-odd2, shin_prob.odd1-oddX-odd2, winner)
-# 4 - last (matchid, bookmaker, norm_prob.odd1-oddX-odd2, shin_prob.odd1-oddX-odd2, winner)
-# source("data_manipulation.R")
-
-df <- first[bookmaker == "1xBet" | bookmaker == "Betfair" | bookmaker == "ComeOn" | bookmaker == "888Sport" | bookmaker == "Pinnacle" | bookmaker == "Betsafe"]
-df <- df[complete.cases(df), ]
-multinomial_model(df)
-
-model_RPS <- predictions[, calculate_rps(odd1, oddX, odd2, winner), by = 1:nrow(predictions)]
-predictions$RPS <- model_RPS$V1
-rm(model_RPS)
-avg <- mean(predictions$RPS)
-
-
-
-
-
-

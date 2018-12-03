@@ -12,9 +12,9 @@
 
 bookiesToKeep = c("10Bet", "12BET", "188BET", "BetVictor", "Betclic", "Betsafe", "Betsson", "Betway", "Pinnacle", "SBOBET", "Unibet", "WilliamHill", "bet365", "betathome", "bwin")
 #bookiesToKeep = c("10Bet", "188BET", "Pinnacle")
-subsetBookies <- function(arr){
-  first <<- first[bookmaker %in% arr]
-  last <<- last[bookmaker %in% arr]
+subsetBookies <- function(arr, df){
+  df <- df[bookmaker %in% arr]
+  df
 }
 
-subsetBookies(bookiesToKeep)
+#subsetBookies(bookiesToKeep)

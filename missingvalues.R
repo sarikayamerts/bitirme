@@ -10,7 +10,7 @@
 #columnsToKeep = grep(paste(bookiesToKeep,collapse="|"),names(details),value=T)
 #details = details[,c('matchId',columnsToKeep),with=F]
 
-bookiesToKeep = c("10Bet", "12BET", "188BET", "BetVictor", "Betclic", "Betsafe", "Betsson", "Betway", "Pinnacle", "SBOBET", "Unibet", "WilliamHill", "bet365", "betathome", "bwin")
+bookiesToKeep = c("10Bet", "12BET", "188BET", "BetVictor", "Betclic", "Betsafe", "Betsson", "Betway", "Pinnacle", "SBOBET", "Unibet", "William Hill", "bet365", "bet-at-home", "bwin")
 #bookiesToKeep = c("10Bet", "188BET", "Pinnacle")
 subsetBookies <- function(arr, df){
   df <- df[bookmaker %in% arr]

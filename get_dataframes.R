@@ -1,9 +1,9 @@
 ### mert's macbook database directory
-setwd("/Users/mertsarikaya/Downloads/Bitirme/")
+#setwd("/Users/mertsarikaya/Downloads/Bitirme/")
 ### mert's windows database directory
 #setwd("")
 ### emre's database directory
-#setwd("C:/Users/Hp/Desktop/Bitirme")
+setwd("C:/Users/Hp/Desktop/Bitirme")
 
 #read raw data
 matches <- read_rds("df9b1196-e3cf-4cc7-9159-f236fe738215_matches.rds")
@@ -24,8 +24,10 @@ matches$season <- matches[, season_calc(date), by = 1:nrow(matches)]$V1
 
 #prepare details
 details <- data.table(details)[, c("matchId", "bookmaker", "betType", "oddtype", "odd", "totalhandicap"), with = FALSE]
-details <- details[betType == '1x2']
 details <- details[bookmaker != 'Betfair Exchange']
+
+details_otherbets <- details[betType != "1x2"]
+details <- details[betType == '1x2']
 details[, c("totalhandicap" , "betType") := NULL]
 
 #prepare first & last
@@ -34,8 +36,8 @@ first <- details[unique(details[,key(details), with = FALSE]), mult = 'first']
 last <- details[unique(details[,key(details), with = FALSE]), mult = 'last']
 
 ### mert's macbook github directory
-setwd("/Users/mertsarikaya/bitirme/")
+#setwd("/Users/mertsarikaya/bitirme/")
 ### mert's windows github directory
 # setwd("")
 ### emre's github directory
-#setwd("C:/Users/Hp/Desktop/Bitirme/bitirme")
+setwd("C:/Users/Hp/Desktop/Bitirme/bitirme")

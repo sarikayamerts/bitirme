@@ -71,8 +71,8 @@ source("convert_odds.R")
 # 1 - wide_first (matchId, shin*basic*bookmaker*oddtype, winner)
 # 2 - wide_last (matchId, shin*basic*bookmaker*oddtype, winner)
 source("reshape.R")
-wide_first <- widening(first, c("888sport", "SBOBET", "bwin", "Pinnacle", "Betclic"))
-wide_last <- widening(last, c("888sport", "SBOBET", "bwin", "Pinnacle", "Betclic"))
+#wide_first <- widening(first, c("888sport", "SBOBET", "bwin", "Pinnacle", "Betclic"))
+wide_last <- widening(last, bookiesToKeep)
 
 ### calculate RPS for all matches using Basic and Shin probs
 # changes in first and last dataframes
@@ -80,6 +80,13 @@ source("calculate_rps.R")
 
 ### calculate average RPS for all bookmakers using Basic and Shin probs
 source("bookmaker_comparison.R")
+
+
+
+### Deleting noncomplete season 2018-2019
+wide_last <- wide_last[season != "2018-2019"]
+
+
 
 ### Creating training and test data
 
@@ -104,7 +111,7 @@ not_included_feature_indices = c(1,n-3,n-2,n-1,n)
 
 
 
-### construction of model (not ready)
+### construction of model
 # functions in this file:
 # 1 - train_glmnet
 source("train_models.R")
@@ -118,6 +125,6 @@ predict <- predictions[["predictions"]]
 predict <- predict[, RPS := calculate_rps(odd1,oddX,odd2,winner), by = 1:nrow(predict)]
 averageRPS <- mean(predict$RPS)
 averageRPS
-testRPS <- last[matchId %in% predict$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
+testRPS <- lastrps[matchId %in% predict$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
 testRPS <- testRPS[order(testRPS$var),]
 testRPS

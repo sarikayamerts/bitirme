@@ -67,6 +67,10 @@ source("missingvalues.R")
 # changes first and last dataframes
 source("convert_odds.R")
 
+### changing odds
+#
+source("changing_odds.R")
+
 ### reshaping first and last dataframes to feature extraction
 # 1 - wide_first (matchId, shin*basic*bookmaker*oddtype, winner)
 # 2 - wide_last (matchId, shin*basic*bookmaker*oddtype, winner)

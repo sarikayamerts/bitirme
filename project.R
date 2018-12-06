@@ -75,6 +75,7 @@ source("changing_odds.R")
 # 1 - wide_first (matchId, shin*basic*bookmaker*oddtype, winner)
 # 2 - wide_last (matchId, shin*basic*bookmaker*oddtype, winner)
 source("reshape.R")
+
 #wide_first <- widening(first, c("888sport", "SBOBET", "bwin", "Pinnacle", "Betclic"))
 wide_last <- widening(last, bookiesToKeep)
 
@@ -91,7 +92,6 @@ source("bookmaker_comparison.R")
 wide_last <- wide_last[season != "2018-2019"]
 
 
-
 ### Creating training and test data
 
 testStart=as.Date('2017-07-15')
@@ -100,6 +100,8 @@ train_features <- wide_last[date>=trainStart & date<testStart]
 test_features <- wide_last[date>=testStart] 
 n <- ncol(train_features)
 not_included_feature_indices = c(1,n-3,n-2,n-1,n)
+TrainSet <- nrow(train_features)
+TestSet <- nrow(test_features)
 # or
 train_features <- wide_last[season != "2018-2019"]
 test_features <- wide_last[season == "2018-2019"]
@@ -125,10 +127,17 @@ predictions <- train_glmnet(train_features, test_features,not_included_feature_i
                             alpha=1,nlambda=50, tune_lambda=TRUE,
                             nofReplications=2,nFolds=10,trace=T,max=FALSE)
 
-predict <- predictions[["predictions"]]
-predict <- predict[, RPS := calculate_rps(odd1,oddX,odd2,winner), by = 1:nrow(predict)]
-averageRPS <- mean(predict$RPS)
-averageRPS
-testRPS <- lastrps[matchId %in% predict$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
+testRPS <- lastrps[matchId %in% predictions[["predictions"]]$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
 testRPS <- testRPS[order(testRPS$var),]
-testRPS
+
+### report of model
+# functions in this file:
+# 1 - model_report
+source("model_report.R")
+
+
+### NOTE: Change the comment below about the input type
+myRPS <- model_report(modeltype = "GLMNET", n_of_inputs = n, Comment = "Basic + Shin", TrainSet, TestSet, trainStart, testStart, predictions, testRPS)
+myRPS
+
+

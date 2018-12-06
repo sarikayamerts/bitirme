@@ -1,12 +1,12 @@
  ### clears the environment
 rm(list = ls())
 
-### mert's macbook github directory
-setwd("/Users/mertsarikaya/bitirme/")
-### mert's windows github directory
-# setwd("")
-### emre's github directory
-#setwd("C:/Users/Hp/Desktop/Bitirme/bitirme")
+if (grepl("mert", toString(getwd()))){
+  setwd("/Users/mertsarikaya/bitirme/")
+}
+if (grepl("Hp", toString(getwd()))) {
+  setwd("C:/Users/Hp/Desktop/Bitirme/bitirme")
+}
 
 library(readr)
 library(graphics)
@@ -19,33 +19,11 @@ library(plotly)
 
 ##### FUNCTIONS TO BE USED
 
-### implementation of shin probability calculation 
-# functions in this file:
-# 1 - shin_prob_calculator(list)
-source("shin.R")
-
-### sets directory easily
-# 1 - set_directory(name)
-# name can be "mert", "emre", "mert_data", "emre_data"
-source("set_directory.R")
-
-### implementation of converting match results from string to {over, under, 1, X, 2} types of outcome
-# functions in this file:
-# 1 - winner(score) 
-# 2 - over_under(score)
-# 3 - inverse(odd)
-source("match_scores.R")
-
 ### implementation of ranked probability score
 # functions in this file:
 # 1 - calculate_rps(home, draw, away, actual) 
 # 2 - calculate_rps2(over, under, actual)
 source("rps.R")
-
-### converting dates to seasons
-# functions in this file:
-# 1 - season_calc(date) 
-source("season_calculator.R")
 
 ### converting odd1, oddX, odd2 to 1,2,3 and viceversa
 # 1 - convert(arr)
@@ -58,10 +36,6 @@ source("converter.R")
 # 4 - last (matchId, bookmaker, oddtype, odd)
 # 5 - next_matches (matchId, score, home, away, date)
 source("get_dataframes.R")
-
-### handle missing odds and subsetting data
-# 
-source("missingvalues.R")
 
 ### converting odds to basic and shin probabilities
 # changes first and last dataframes
@@ -89,11 +63,11 @@ source("bookmaker_comparison.R")
 
 
 ### Deleting noncomplete season 2018-2019
+# WHY??
 wide_last <- wide_last[season != "2018-2019"]
 
 
 ### Creating training and test data
-
 testStart=as.Date('2017-07-15')
 trainStart=as.Date('2010-08-13')
 train_features <- wide_last[date>=trainStart & date<testStart] 
@@ -102,19 +76,36 @@ n <- ncol(train_features)
 not_included_feature_indices = c(1,n-3,n-2,n-1,n)
 TrainSet <- nrow(train_features)
 TestSet <- nrow(test_features)
-# or
+
+# or seasonal
 train_features <- wide_last[season != "2018-2019"]
 test_features <- wide_last[season == "2018-2019"]
 n <- ncol(train_features)
 not_included_feature_indices = c(1,n-3,n-2,n-1,n)
-# or 
-start = '2018-11-24'
-end = '2018-11-26'
-test_features <- wide_last[date >= start & date <= end] 
-train_features <- wide_last[date < start] 
+
+# or between dates
+start = '2018-11-28'
+end = '2018-12-01'
+next_match_ids <- next_matches[date >= start][date <= end]$matchId
+test_data <- last[matchId %in% next_match_ids]
+wide_test <- widening_test(test_data, bookiesToKeep)
+test_features <- wide_test
+train_features <- wide_last
 n <- ncol(train_features)
 not_included_feature_indices = c(1,n-3,n-2,n-1,n)
 
+# or weekly
+test_match_ids <- matches[week == 48][season == '2018-2019']$matchId
+test_data <- last[matchId %in% test_match_ids]
+wide_test <- widening(test_data, bookiesToKeep)
+test_features <- wide_test
+train_features <- wide_last[date < '2018-12-03']
+n <- ncol(train_features)
+not_included_feature_indices = c(1,n-3,n-2,n-1,n)
+TrainSet <- nrow(train_features)
+TestSet <- nrow(test_features)
+testStart=as.Date('2018-12-03')
+trainStart=as.Date('2010-08-13')
 
 
 ### construction of model
@@ -138,6 +129,6 @@ source("model_report.R")
 
 ### NOTE: Change the comment below about the input type
 myRPS <- model_report(modeltype = "GLMNET", n_of_inputs = n, Comment = "Basic + Shin", TrainSet, TestSet, trainStart, testStart, predictions, testRPS)
-myRPS
 
+myRPS
 

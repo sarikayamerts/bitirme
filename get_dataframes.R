@@ -1,9 +1,21 @@
-### mert's macbook database directory
-#setwd("/Users/mertsarikaya/Downloads/Bitirme/")
-### mert's windows database directory
-#setwd("")
-### emre's database directory
-setwd("C:/Users/Hp/Desktop/Bitirme")
+### sets directory easily
+# 1 - set_directory(name)
+# name can be "code", "data"
+source("set_directory.R")
+
+### implementation of converting match results from string to {over, under, 1, X, 2} types of outcome
+# functions in this file:
+# 1 - winner(score) 
+# 2 - over_under(score)
+# 3 - inverse(odd)
+source("match_scores.R")
+
+### converting dates to seasons
+# functions in this file:
+# 1 - season_calc(date) 
+source("season_calculator.R")
+
+set_directory("data")
 
 #read raw data
 matches <- read_rds("df9b1196-e3cf-4cc7-9159-f236fe738215_matches.rds")
@@ -22,6 +34,10 @@ matches$winner <- matches[, winner(score), by = 1:nrow(matches)]$V1
 matches$week <- matches[, strftime(date-1, format = "%V"), by = 1:nrow(matches)]$V1
 matches$season <- matches[, season_calc(date), by = 1:nrow(matches)]$V1
 
+next_matches$winner <- next_matches[, winner(score), by = 1:nrow(next_matches)]$V1
+next_matches$week <- next_matches[, strftime(date-1, format = "%V"), by = 1:nrow(next_matches)]$V1
+next_matches$season <- next_matches[, season_calc(date), by = 1:nrow(next_matches)]$V1
+
 #prepare details
 details <- data.table(details)[, c("matchId", "bookmaker", "betType", "oddtype", "odd", "totalhandicap"), with = FALSE]
 details <- details[bookmaker != 'Betfair Exchange']
@@ -35,9 +51,4 @@ key(details) <- c("matchId", "bookmaker", "oddtype")
 first <- details[unique(details[,key(details), with = FALSE]), mult = 'first']
 last <- details[unique(details[,key(details), with = FALSE]), mult = 'last']
 
-### mert's macbook github directory
-#setwd("/Users/mertsarikaya/bitirme/")
-### mert's windows github directory
-# setwd("")
-### emre's github directory
-setwd("C:/Users/Hp/Desktop/Bitirme/bitirme")
+set_directory("code")

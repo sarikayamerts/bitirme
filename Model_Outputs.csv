@@ -1,2 +1,4 @@
 ModelType,n_of_inputs,Comment,TrainSet,TestSet,trainStart,testStart,averageRPS,TestRPS_min,TestRPS_ave
 GLMNET,95,Basic + Shin,2646,378,14834,17362,0.18397,0.18219,0.18486
+GLMNET,95,Basic + Shin,2646,378,14834,17362,0.18397,0.18219,0.18486
+GLMNET,95,Basic + Shin,3024,10,14834,17868,0.17812,0.17632,0.18096

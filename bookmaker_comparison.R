@@ -7,7 +7,7 @@
 # eskiden böyleydi season ekledik şimdi
 average <- lastrps[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
 average_season <- lastrps[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker","season")]
-average_week <- lastrps[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("week","season")]
+average_week <- lastrps[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker", "week","season")]
 #average <- merge(average, first[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")], by = c("bookmaker"))
 #average <- merge(average, lastrps[, .(var = mean(Basic_RPS, na.rm = TRUE)), by = c("bookmaker")], by = c("bookmaker"))
 #average <- merge(average, lastrps[, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")], by = c("bookmaker"))

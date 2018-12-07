@@ -1,5 +1,5 @@
 ### NEEDS TO BE DONE
-
+# changes in odd
 
 ### clears the environment
 rm(list = ls())
@@ -155,6 +155,7 @@ not_included_feature_indices = c(1,n-3,n-2,n-1,n)
 TrainSet <- nrow(train_features)
 TestSet <- nrow(test_features)
 
+
 ### construction of model
 # functions in this file:
 # 1 - train_glmnet
@@ -207,4 +208,22 @@ myRPS <- model_report("GLMNET", n, "Basic + Shin 48 Week", TrainSet, TestSet, tr
 
 myRPS
 
+############################rf
+
+train_y <- convert(train_features$winner)
+train <- train_features[,c(-1, -93, -94, -95)]
+train$winner <- as.integer(convert(train$winner))
+train <- train[complete.cases(train)]
+test_x <- test_features[,c(-1, -92, -93, -94, -95)]
+
 library(caret)
+control <- trainControl(method="repeatedcv", number=10, repeats=3)
+seed <- 7
+metric <- "RPS"
+set.seed(seed)
+mtry <- sqrt(ncol(train))
+tunegrid <- expand.grid(.mtry=mtry)
+rf_default <- train(winner~., data=train, method="rf", metric=metric, tuneGrid=tunegrid, trControl=control)
+print(rf_default)
+
+predict(rf_default, test_x, type = "prob")

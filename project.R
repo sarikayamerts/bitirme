@@ -1,4 +1,7 @@
- ### clears the environment
+### NEEDS TO BE DONE
+
+
+### clears the environment
 rm(list = ls())
 
 if (grepl("mert", toString(getwd()))){
@@ -64,7 +67,7 @@ source("bookmaker_comparison.R")
 
 ### Deleting noncomplete season 2018-2019
 # WHY??
-wide_last <- wide_last[season != "2018-2019"]
+# wide_last <- wide_last[season != "2018-2019"]
 
 
 ### Creating training and test data
@@ -72,16 +75,10 @@ testStart=as.Date('2017-07-15')
 trainStart=as.Date('2010-08-13')
 train_features <- wide_last[date>=trainStart & date<testStart] 
 test_features <- wide_last[date>=testStart] 
-n <- ncol(train_features)
-not_included_feature_indices = c(1,n-3,n-2,n-1,n)
-TrainSet <- nrow(train_features)
-TestSet <- nrow(test_features)
 
 # or seasonal
 train_features <- wide_last[season != "2018-2019"]
 test_features <- wide_last[season == "2018-2019"]
-n <- ncol(train_features)
-not_included_feature_indices = c(1,n-3,n-2,n-1,n)
 
 # or between dates
 start = '2018-11-28'
@@ -91,8 +88,6 @@ test_data <- last[matchId %in% next_match_ids]
 wide_test <- widening_test(test_data, bookiesToKeep)
 test_features <- wide_test
 train_features <- wide_last
-n <- ncol(train_features)
-not_included_feature_indices = c(1,n-3,n-2,n-1,n)
 
 # or weekly
 test_match_ids <- matches[week == 48][season == '2018-2019']$matchId
@@ -100,13 +95,13 @@ test_data <- last[matchId %in% test_match_ids]
 wide_test <- widening(test_data, bookiesToKeep)
 test_features <- wide_test
 train_features <- wide_last[date < '2018-12-03']
+testStart=as.Date('2018-12-03')
+trainStart=as.Date('2010-08-13')
+
 n <- ncol(train_features)
 not_included_feature_indices = c(1,n-3,n-2,n-1,n)
 TrainSet <- nrow(train_features)
 TestSet <- nrow(test_features)
-testStart=as.Date('2018-12-03')
-trainStart=as.Date('2010-08-13')
-
 
 ### construction of model
 # functions in this file:
@@ -128,7 +123,7 @@ source("model_report.R")
 
 
 ### NOTE: Change the comment below about the input type
-myRPS <- model_report(modeltype = "GLMNET", n_of_inputs = n, Comment = "Basic + Shin", TrainSet, TestSet, trainStart, testStart, predictions, testRPS)
+myRPS <- model_report("GLMNET", n, "Basic + Shin 48 Week", TrainSet, TestSet, trainStart, testStart, predictions, testRPS)
 
 myRPS
 

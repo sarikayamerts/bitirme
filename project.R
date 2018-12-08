@@ -1,5 +1,7 @@
 ### NEEDS TO BE DONE
 # changes in odd
+# friedman nemenyi tests
+# last 5 matches
 
 ### clears the environment
 rm(list = ls())
@@ -19,6 +21,7 @@ library(glmnet)
 library(TunePareto)
 library(anytime) 
 library(plotly)
+library(stats)
 
 ##### FUNCTIONS TO BE USED
 
@@ -63,6 +66,11 @@ source("calculate_rps.R")
 ### calculate average RPS for all bookmakers using Basic and Shin probs
 source("bookmaker_comparison.R")
 
+### statistical tests
+# 1- basic_vs_shin(df)
+# 2- 
+source("statistical_tests.R")
+basic_vs_shin <- basic_vs_shin(lastrps)
 
 
 ### Deleting noncomplete season 2018-2019

@@ -57,7 +57,7 @@ source("changing_odds.R")
 source("reshape.R")
 
 #wide_first <- widening(first, c("888sport", "SBOBET", "bwin", "Pinnacle", "Betclic"))
-wide_last <- widening(last, bookiesToKeep)
+wide_last <- widening(last[,-4], bookiesToKeep)
 
 ### calculate RPS for all matches using Basic and Shin probs
 # changes in first and last dataframes
@@ -216,22 +216,44 @@ myRPS <- model_report("GLMNET", n, "Basic + Shin 48 Week", TrainSet, TestSet, tr
 
 myRPS
 
-############################rf
+###########################
+#RANDOM FOREST
 
-train_y <- convert(train_features$winner)
-train <- train_features[,c(-1, -93, -94, -95)]
-train$winner <- as.integer(convert(train$winner))
+test_match_ids <- matches[week == 47][season == '2018-2019']$matchId
+test_data <- last[matchId %in% test_match_ids]
+wide_test <- widening(test_data[,-4], bookiesToKeep)
+test_features <- wide_test
+min_date <- min(matches[season == "2018-2019"][week == 47]$date)
+train_features <- wide_last[date < min_date]
+
+len_train = ncol(train_features)
+train <- train_features[,-c(1, 48:50)]
+train$winner <- factor(convert(train$winner))
 train <- train[complete.cases(train)]
-test_x <- test_features[,c(-1, -92, -93, -94, -95)]
+test_x <- test_features[,-c(1, 47:50)]
 
 library(caret)
-control <- trainControl(method="repeatedcv", number=10, repeats=3)
+control <- trainControl(method="repeatedcv", number=3, repeats=2)
 seed <- 7
-metric <- "RPS"
+metric <- "Accuracy"
 set.seed(seed)
 mtry <- sqrt(ncol(train))
 tunegrid <- expand.grid(.mtry=mtry)
 rf_default <- train(winner~., data=train, method="rf", metric=metric, tuneGrid=tunegrid, trControl=control)
 print(rf_default)
 
-predict(rf_default, test_x, type = "prob")
+convert_1x2 <- function(arr){
+  n = length(arr)
+  arr_copy <- copy(arr)
+  for (i in 1:n){
+    if (arr_copy[i] < 1.80) {arr_copy[i] <- "odd1"}
+    else if ((arr_copy[i] >= 1.80) & (arr_copy[i] <= 2.20)) {arr_copy[i] <- "oddX"}
+    else {arr_copy[i] <- "odd2"}
+  }
+  as.vector(arr_copy)
+}
+
+output <- predict(rf_default, test_x)
+convert_1x2(output)
+test_features$winner
+table(convert_1x2(output), test_features$winner)

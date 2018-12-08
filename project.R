@@ -1,6 +1,5 @@
 ### NEEDS TO BE DONE
 # changes in odd
-# mert deneme
 
 ### clears the environment
 rm(list = ls())

@@ -22,6 +22,7 @@ library(TunePareto)
 library(anytime) 
 library(plotly)
 library(stats)
+library(PMCMR)
 
 ##### FUNCTIONS TO BE USED
 
@@ -67,10 +68,13 @@ source("calculate_rps.R")
 source("bookmaker_comparison.R")
 
 ### statistical tests
-# 1- basic_vs_shin(df)
-# 2- 
+#   You need to send dataframes as c(matchId, bookmakers, RPS)
+#
 source("statistical_tests.R")
+
 basic_vs_shin <- basic_vs_shin(lastrps)
+bookie_friedman <- bookmaker_comp_friedman(lastrps, bookiesToKeep)
+nemenyi_test_outputs <- bookmaker_comp_plot(lastrps,bookiesToKeep)
 
 
 ### Deleting noncomplete season 2018-2019

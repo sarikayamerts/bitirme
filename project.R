@@ -1,7 +1,9 @@
 ### NEEDS TO BE DONE
 # changes in odd
-# friedman nemenyi tests
+# friedman nemenyi tests DONE
 # last 5 matches
+# hybrid random forest
+# ordinal outcomes (in caret package 7.0.30)
 
 ### clears the environment
 rm(list = ls())

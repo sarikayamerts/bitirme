@@ -203,8 +203,9 @@ convert_1x2 <- function(arr){
 }
 
 
-output <- predict(rf_default, test_x)
-convert_1x2(output)
-convert(as.integer(output))
-test_features$winner
-table(convert_1x2(output), test_features$winner)
+### Bunlar fonksiyon disindaydi comment outladim simdilik
+#output <- predict(rf_default, test_x)
+#convert_1x2(output)
+#convert(as.integer(output))
+#test_features$winner
+#table(convert_1x2(output), test_features$winner)

@@ -48,7 +48,7 @@ details[, c("totalhandicap" , "betType") := NULL]
 
 #prepare first & last
 key(details) <- c("matchId", "bookmaker", "oddtype")
-first <- details[unique(details[,key(details), with = FALSE]), mult = 'first']
+#first <- details[unique(details[,key(details), with = FALSE]), mult = 'first']
 last <- details[unique(details[,key(details), with = FALSE]), mult = 'last']
 
 set_directory("code")

@@ -28,56 +28,75 @@ library(PMCMR)
 
 ##### FUNCTIONS TO BE USED
 
-### implementation of ranked probability score
+################################################
+# implementation of ranked probability score
 # functions in this file:
 # 1 - calculate_rps(home, draw, away, actual) 
 # 2 - calculate_rps2(over, under, actual)
+################################################
 source("rps.R")
 
-### converting odd1, oddX, odd2 to 1,2,3 and viceversa
+
+################################################
+# converting odd1, oddX, odd2 to 1,2,3 and viceversa
 # 1 - convert(arr)
+################################################
 source("converter.R")
 
-### read and prepare dataframes (not ready)
+
+################################################
+# read and prepare dataframes 
 # 1 - details (matchId, bookmaker, oddtype, odd)
 # 2 - matches (matchId, score, home, away, date, over_under, winner, season)
 # 3 - first (matchId, bookmaker, oddtype, odd)
 # 4 - last (matchId, bookmaker, oddtype, odd)
 # 5 - next_matches (matchId, score, home, away, date)
+################################################
 source("get_dataframes.R")
 
-### converting odds to basic and shin probabilities
-# changes first and last dataframes
+
+### converting odds to basic and shin probabilities, gives insiders
 source("convert_odds.R")
 
 ### changing odds
-# create a changes dataframe
-source("changing_odds.R")
+#source("changing_odds.R")
 
 
-### reshaping first and last dataframes to feature extraction
-# 1 - wide_first (matchId, shin*basic*bookmaker*oddtype, winner)
-# 2 - wide_last (matchId, shin*basic*bookmaker*oddtype, winner)
-source("reshape.R")
-
-#wide_first <- widening(first, c("888sport", "SBOBET", "bwin", "Pinnacle", "Betclic"))
-wide_last <- widening(last[,-4], bookiesToKeep)
-
+################  NOT FOR MODELS ############## 
 ### calculate RPS for all matches using Basic and Shin probs
-# changes in first and last dataframes
 source("calculate_rps.R")
-
 ### calculate average RPS for all bookmakers using Basic and Shin probs
 source("bookmaker_comparison.R")
-
 ### statistical tests
-#   You need to send dataframes as c(matchId, bookmakers, RPS)
-#
 source("statistical_tests.R")
-
 basic_vs_shin <- basic_vs_shin(lastrps)
 bookie_friedman <- bookmaker_comp_friedman(lastrps, bookiesToKeep)
 nemenyi_test_outputs <- bookmaker_comp_plot(lastrps,bookiesToKeep)
+###############################################
+
+
+
+
+##################################
+# Features:
+# 1 - Shin Probabilities  df = last[matchId,bookmaker,oddtype,shin_prob])
+# 2 - Changing in Odds    df = changes[....])
+# 3 - Insider Traders     df = insider[matchId,bookmaker,z] 
+##################################
+
+### reshaping features to create train_features
+source("reshape.R")
+
+
+### Creating training and test data together
+
+shin_wide <- widening(last[,-4], bookiesToKeep)
+#change_wide <- widening(change, bookiesToKeep) 
+#insider_wide <- widening_others(insider, bookiesToKeep)
+
+features <- merge(shin_wide, matches[, .(matchId, winner, date, week, season)], by = "matchId")
+#features <- merge(features, change_wide, by = "matchId")
+#features <- merge(features, insider_wide, by = "matchId")
 
 
 source("variable_importance.R")

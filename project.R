@@ -4,6 +4,11 @@
 # last 5 matches
 # hybrid random forest
 # ordinal outcomes (in caret package 7.0.30)
+# shift edip meanleri hesapla, sürpriz var mı gözle bak
+# scmamp
+# last ve first için datayı bir daha order et, hatalı olabilir kendi sırası
+# odd'lardaki değişimleri saat farkına böldüm (saat sıralamasını unutma)
+## böyle olunca son bir saat içinde olanlar gözüktü hep 2 gün önce çok büyül bir değişiklik olduysa oran çok küçük kaldı
 
 ### clears the environment
 rm(list = ls())
@@ -93,6 +98,10 @@ source("reshape.R")
 shin_wide <- widening(last[,-4], bookiesToKeep)
 #change_wide <- widening(change, bookiesToKeep) 
 #insider_wide <- widening_others(insider, bookiesToKeep)
+
+#bence böyle widelayalım
+#we will do widening inside of our model prepration
+shin_insider_wide <- merge(last, insider, by = c("matchId", "bookmaker"))
 
 features <- merge(shin_wide, matches[, .(matchId, winner, date, week, season)], by = "matchId")
 #features <- merge(features, change_wide, by = "matchId")

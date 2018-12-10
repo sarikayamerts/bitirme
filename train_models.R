@@ -3,21 +3,27 @@ library(e1071)
 
 #models(matches[week == 48][season == "2018-2019"],   #match ids that we want to predict
 #             last_df)                                     #last dataset to we widened, we can add this changes etc.
-models <- function(matches_df, last_df = last, model_type = "randomforest"){
+models <- function(matches_df, last_df = last, 
+                   model_type = c("randomforest", "multinomial"),
+                   rf_metric = c("Accuracy", "Kappa", "rps"), rf_imp = c(T,F)
+                   
+                   ){
   test_match_ids <- matches_df$matchId
-  test_data <- last[matchId %in% test_match_ids]
+  test_data <- last_df[matchId %in% test_match_ids]
   wide_test <- widening(test_data[,-c("norm_prob")], bookiesToKeep)
   min_date <- min(matches[matchId %in% test_match_ids]$date)
-  
-  test_features <- wide_test
-  train_features <- wide_last[date < min_date]
-  
-  train <- train_features[,-c("matchId", "date", "week", "season")]
-  train <- train[complete.cases(train)]
-  test <- test_features[,-c("matchId", "winner", "date", "week", "season")]
+  train_match_ids <- matches[date < min_date]$matchId
+  train_data <- last_df[matchId %in% train_match_ids]
+  wide_train <- widening(train_data[,-c("norm_prob")], bookiesToKeep)
+  wide_train <- wide_train[complete.cases(wide_train)]
+  wide_test <- wide_test[complete.cases(wide_test)]
+  test_match_ids <- wide_test$matchId
+
+  train <- wide_train[,-c("matchId", "date", "week", "season")]
+  test <- wide_test[,-c("matchId", "winner", "date", "week", "season")]
   
   if (model_type == "randomforest") {
-    random_forest(train, test)
+    random_forest(train, test, metric_name = rf_metric, varimpTF = rf_imp)
   }
   else if (model_type == "multinomial") {
     train_glmnet(train, test)
@@ -29,16 +35,16 @@ models <- function(matches_df, last_df = last, model_type = "randomforest"){
 #returns output_prob, testRPS
 random_forest <- function(train, test, 
                           control_method = "repeatedcv", control_number = 10, repeat_number = 3, 
-                          search_type = "grid", seed_no = 7, metric_name = "Accuracy"){
+                          search_type = "random", metric_name = "Accuracy", varimpTF = TRUE){
   
-  control <- trainControl(method = control_method, number = control_number, repeats = repeat_number, search = search_type)
-  seed <- seed_no
+  control <- trainControl(method = control_method, number = control_number, repeats = repeat_number)
   #metric can be Accuracy, ROC, RMSE, logLoss
-  set.seed(seed)
+  set.seed(7)
   mtry <- sqrt(ncol(train))
   tunegrid <- expand.grid(.mtry=mtry)
-  rf_default <- train(factor(convert(winner))~., data=train, method="rf", metric=metric_name, tuneGrid=tunegrid, trControl=control)
-  output_prob <- predict(rf_default, test_x, "prob")
+  rf_default <- train(factor(convert(winner))~., data=train, method="rf", metric=metric_name, tuneGrid=tunegrid, trControl=control, importance = varimpTF)
+  varImp(rf_default)
+  output_prob <- predict(rf_default, test, "prob")
   colnames(output_prob) <- c("odd1", "oddX", "odd2")
   output_prob$winner <- test_features$winner
   output_prob$matchId <- test_match_ids

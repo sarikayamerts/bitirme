@@ -49,8 +49,9 @@ source("get_dataframes.R")
 source("convert_odds.R")
 
 ### changing odds
-#
+# create a changes dataframe
 source("changing_odds.R")
+
 
 ### reshaping first and last dataframes to feature extraction
 # 1 - wide_first (matchId, shin*basic*bookmaker*oddtype, winner)
@@ -76,6 +77,9 @@ basic_vs_shin <- basic_vs_shin(lastrps)
 bookie_friedman <- bookmaker_comp_friedman(lastrps, bookiesToKeep)
 nemenyi_test_outputs <- bookmaker_comp_plot(lastrps,bookiesToKeep)
 
+
+source("variable_importance.R")
+
 source("train_models.R")
 
 models(matches[date > '2017-07-15'], "randomforest")
@@ -88,6 +92,9 @@ for (i in noquote(unique(matches[season == "2018-2019"]$week))){
   paste("Season 2018-2019, week ", i)
   models(matches[week == i][season == '2018-2019'], "randomforest")
 }
+
+#percentage changes
+models(matches[date >= '2018-11-28'][date <= '2018-12-01'], changes)
 
 
 ### report of model

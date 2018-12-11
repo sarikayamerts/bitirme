@@ -5,7 +5,8 @@
 
 lastrps <- copy(last)
 lastrps <- reshape(lastrps, idvar = c("matchId", "bookmaker"), timevar = "oddtype", direction = "wide")
-lastrps <- merge(lastrps, matches[, .(matchId, winner, season, week)], by = "matchId")
+lastrps <- merge(lastrps, matches[, .(matchId, winner)], by = "matchId")
+#lastrps <- merge(lastrps, matches[, .(matchId, winner, season, week)], by = "matchId")
 #setcolorder(last, c("matchId","bookmaker","z","norm_prob.odd1","norm_prob.oddX", "norm_prob.odd2","shin_prob.odd1","shin_prob.oddX", "shin_prob.odd2", "winner"))
 
 #rps calculation

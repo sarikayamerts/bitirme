@@ -3,27 +3,32 @@ library(e1071)
 
 #models(matches[week == 48][season == "2018-2019"],   #match ids that we want to predict
 #             last_df)                                     #last dataset to we widened, we can add this changes etc.
-models <- function(matches_df, last_df = last, 
+models <- function(matches_df, last_df = lastrps, 
                    model_type = c("randomforest", "multinomial"),
-                   rf_metric = c("Accuracy", "Kappa", "rps"), rf_imp = c(T,F)
-                   
-                   ){
+                   rf_metric = c("Accuracy", "Kappa", "rps"), rf_imp = c(T,F),
+                   ordered = FALSE){
   test_match_ids <- matches_df$matchId
   test_data <- last_df[matchId %in% test_match_ids]
-  wide_test <- widening(test_data[,-c("norm_prob")], bookiesToKeep)
+  
+  #wide_test <- widening(test_data[,-c("norm_prob")], bookiesToKeep)
+  wide_test <- widening_withwinner(test_data, bookiesToKeep)
   min_date <- min(matches[matchId %in% test_match_ids]$date)
-  train_match_ids <- matches[date < min_date]$matchId
+  lower_date <- as.Date(min_date)-365
+  train_match_ids <- matches[date < min_date][date > lower_date]$matchId
   train_data <- last_df[matchId %in% train_match_ids]
-  wide_train <- widening(train_data[,-c("norm_prob")], bookiesToKeep)
+  #wide_train <- widening(train_data[,-c("norm_prob")], bookiesToKeep)
+  wide_train <- widening_withwinner(train_data, bookiesToKeep)
   wide_train <- wide_train[complete.cases(wide_train)]
   wide_test <- wide_test[complete.cases(wide_test)]
   test_match_ids <- wide_test$matchId
 
   train <- wide_train[,-c("matchId", "date", "week", "season")]
   test <- wide_test[,-c("matchId", "winner", "date", "week", "season")]
-  
+
+  if (ordered){train$winner <- ordered(train$winner, levels = c("odd1", "oddX", "odd2"))}
+    
   if (model_type == "randomforest") {
-    random_forest(train, test, metric_name = rf_metric, varimpTF = rf_imp)
+    random_forest(train, test, metric_name = rf_metric, varimpTF = rf_imp, is_ordered = ordered)
   }
   else if (model_type == "multinomial") {
     train_glmnet(train, test)
@@ -35,18 +40,21 @@ models <- function(matches_df, last_df = last,
 #returns output_prob, testRPS
 random_forest <- function(train, test, 
                           control_method = "repeatedcv", control_number = 10, repeat_number = 3, 
-                          search_type = "random", metric_name = "Accuracy", varimpTF = TRUE){
+                          metric_name = "Accuracy", varimpTF = TRUE, is_ordered = FALSE){
   
   control <- trainControl(method = control_method, number = control_number, repeats = repeat_number)
   #metric can be Accuracy, ROC, RMSE, logLoss
   set.seed(7)
   mtry <- sqrt(ncol(train))
   tunegrid <- expand.grid(.mtry=mtry)
-  rf_default <- train(factor(convert(winner))~., data=train, method="rf", metric=metric_name, tuneGrid=tunegrid, trControl=control, importance = varimpTF)
+  
+  if (!is_ordered){rf_default <- train(factor(convert(winner))~., data=train, method="rf", metric=metric_name, tuneGrid=tunegrid, trControl=control, importance = varimpTF)}
+  else{rf_default <- train(winner~., data=train, method="rf", metric=metric_name, tuneGrid=tunegrid, trControl=control, importance = varimpTF)}
+  
   varImp(rf_default)
   output_prob <- predict(rf_default, test, "prob")
   colnames(output_prob) <- c("odd1", "oddX", "odd2")
-  output_prob$winner <- test_features$winner
+  output_prob$winner <- wide_test$winner
   output_prob$matchId <- test_match_ids
   setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2", "winner"))
   output_prob <- as.data.table(output_prob)[, RPS := calculate_rps(odd1, oddX, odd2, winner), by = 1:nrow(output_prob)]
@@ -60,7 +68,7 @@ random_forest <- function(train, test,
   testRPS <- rbind(testRPS, x)
   testRPS <- testRPS[order(testRPS$var),]
   print(testRPS)
-  
+  return(ourRPS)
 }
 #trace prints out that sentence
 #max includes column for maximum oddtype

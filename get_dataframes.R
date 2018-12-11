@@ -73,9 +73,12 @@ details_change <- merge(details_change, matches[,c("matchId", "winner")], by = "
 details_change[, c("odd", "time", "lead_odd", "lead_time", "odd_diff", "time_diff") := NULL]
 #View(details_change[oddtype == "odd2"])
 
+
 details_change <- details_change[, avg:= mean(diff), by = c("matchId", "bookmaker", "oddtype")]
 #details_change <- details_change[, sd:= sd(diff), by = c("matchId", "bookmaker", "oddtype")]
 #details_change <- details_change[, max:= max(diff), by = c("matchId", "bookmaker", "oddtype")]
+
+details_change <- unique(details_change)
 
 
 #prepare first & last

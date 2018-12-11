@@ -13,8 +13,6 @@ widening <- function(df, arr){
   
 }
 
-widening_diff <- 
-
 #widening dataframes for features not releated to odds
 widening_others <- function(df, arr){
   odds <- copy(df)
@@ -24,6 +22,17 @@ widening_others <- function(df, arr){
   df_wide
   
 }
+
+widening_withwinner <- function(df, arr){
+  df_copy <- copy(df)
+  df_copy <- subsetBookies(arr, df_copy)
+  
+  df_wide <- reshape(df_copy, idvar = c("matchId", "winner"), timevar = c("bookmaker"), direction = "wide")
+  df_wide
+  
+}
+
+
 
 widening_test <- function(df, arr){
   odds <- copy(df)

@@ -1,14 +1,15 @@
 ### NEEDS TO BE DONE
-# changes in odd
-# friedman nemenyi tests DONE
+# DONE changes in odd
+# DONE friedman nemenyi tests
 # last 5 matches
 # hybrid random forest
 # ordinal outcomes (in caret package 7.0.30)
-# shift edip meanleri hesapla, sürpriz var mı gözle bak
+# DONE shift edip meanleri hesapla, sürpriz var mı gözle bak
 # scmamp
-# last ve first için datayı bir daha order et, hatalı olabilir kendi sırası
-# odd'lardaki değişimleri saat farkına böldüm (saat sıralamasını unutma)
+# DONE last ve first için datayı bir daha order et, hatalı olabilir kendi sırası
+# DONE odd'lardaki değişimleri saat farkına böldüm (saat sıralamasını unutma)
 ## böyle olunca son bir saat içinde olanlar gözüktü hep 2 gün önce çok büyül bir değişiklik olduysa oran çok küçük kaldı
+# oddX'i çıkar, 1 ve 2 kalsın sadece
 
 ### clears the environment
 rm(list = ls())
@@ -57,8 +58,17 @@ source("converter.R")
 # 4 - last (matchId, bookmaker, oddtype, odd)
 # 5 - next_matches (matchId, score, home, away, date)
 # 6 - details_change
+# functions
+# 1 - inverse
+# 2 - over_under
+# 3 - season_calc
+# 4 - set_directory
+# 5 - winner
 ################################################
 source("get_dataframes.R")
+View(details)
+View(head(matches))
+View(head(details_change))
 
 
 ### converting odds to basic and shin probabilities, gives insiders
@@ -70,6 +80,7 @@ source("convert_odds.R")
 
 ################  NOT FOR MODELS ############## 
 ### calculate RPS for all matches using Basic and Shin probs
+# lastrps <<<< required for models
 source("calculate_rps.R")
 ### calculate average RPS for all bookmakers using Basic and Shin probs
 source("bookmaker_comparison.R")
@@ -96,18 +107,25 @@ source("reshape.R")
 
 ### Creating training and test data together
 
-shin_wide <- widening(last, bookiesToKeep)
+#shin_wide <- widening(last, bookiesToKeep)
 #change_wide <- widening(change, bookiesToKeep) 
 #insider_wide <- widening_others(insider, bookiesToKeep)
 
 #bence böyle widelayalım
 #we will do widening inside of our model prepration
-shin_insider <- merge(lastrps[,c(1:5)], insider, by = c("matchId", "bookmaker"))
-shin_changes <- merge(last, details_change[,c("matchId", "bookmaker", "oddtype", "diff")],by = c("matchId", "bookmaker", "oddtype")) 
-shin_changes_insider <- reshape(shin_changes, idvar = c("matchId", "bookmaker"), timevar = c("oddtype"), direction = "wide")
+#last:           matchId, bookmaker, oddtype, shin_prob
+#lastrps:        matchId, bookmaker, shin_prob(1X2), winner, season, week, shinrps
+#insider:        matchId, bookmaker, z
+#details_change: matchId, bookmaker, oddtype, diff, winner, avg
+#shin_insider:   matchId, bookmaker, shin_prob(1X2), winner, z
+#shin_changes:   matchId, bookmaker, winner, shin_prob(1X2), avg(1X2)
+#shin_changes_insider: matchId, bookmaker, winner, shin_prob(1X2), avg(1X2), z
+shin_insider <- merge(lastrps[,c(1:6)], insider, by = c("matchId", "bookmaker"))
+shin_changes <- merge(last, details_change[,c("matchId", "bookmaker", "oddtype", "avg", "winner")],by = c("matchId", "bookmaker", "oddtype"))
+shin_changes <- reshape(shin_changes, idvar = c("matchId", "bookmaker", "winner"), timevar = c("oddtype"), direction = "wide")
 shin_changes_insider <- merge(shin_changes, insider, by = c("matchId", "bookmaker"))
 
-features <- merge(shin_wide, matches[, .(matchId, winner, date, week, season)], by = "matchId")
+#features <- merge(shin_wide, matches[, .(matchId, winner, date, week, season)], by = "matchId")
 #features <- merge(features, change_wide, by = "matchId")
 #features <- merge(features, insider_wide, by = "matchId")
 
@@ -127,8 +145,16 @@ for (i in noquote(unique(matches[season == "2018-2019"]$week))){
   models(matches[week == i][season == '2018-2019'], "randomforest")
 }
 
-#percentage changes
-models(matches[date >= '2018-11-28'][date <= '2018-12-01'], changes)
+
+
+# A = rps 
+A <- models(matches[week == 48][season == '2018-2019'], lastrps, "randomforest")
+# A + B = rps + insider
+AB <- models(matches[week == 48][season == '2018-2019'], shin_insider, "randomforest")
+# A + C = rps + average change rate
+AC <- models(matches[week == 48][season == '2018-2019'], shin_changes, "randomforest")
+# A + B + C = rps + insider + average change rate
+ABC <- models(matches[week == 48][season == '2018-2019'], shin_changes_insider, "randomforest")
 
 
 ### report of model

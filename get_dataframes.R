@@ -39,11 +39,11 @@ next_matches$week <- next_matches[, strftime(date-1, format = "%V"), by = 1:nrow
 next_matches$season <- next_matches[, season_calc(date), by = 1:nrow(next_matches)]$V1
 
 #prepare details and details_change
+details <- details[order(date)]
 details_change <- details
 details <- data.table(details)[, c("matchId", "bookmaker", "date", "betType", "oddtype", "odd", "totalhandicap"), with = FALSE]
 details <- details[bookmaker != 'Betfair Exchange']
 details[,time:=anytime(date)]
-details[order(-time),key(details),]
 
 details_otherbets <- details[betType != "1x2"]
 details <- details[betType == '1x2']
@@ -67,9 +67,14 @@ details_change <- details_change[complete.cases(details_change)]
 details_change[, odd_diff := (odd - lead_odd)/odd , by = c("matchId", "bookmaker", "oddtype")]
 details_change[, time_diff := as.integer(difftime(anytime(time), anytime(lead_time),units = "hours")), by = c("matchId", "bookmaker", "oddtype")]
 details_change <- details_change[time_diff != 0]
+#details_change <- details_change[odd_diff != 0]
 details_change[, diff := odd_diff / time_diff, by = c("matchId", "bookmaker", "oddtype")]
 details_change <- merge(details_change, matches[,c("matchId", "winner")], by = "matchId")
 View(details_change[oddtype == "odd2"])
+
+details_change <- details_change[, avg:= mean(diff), by = c("matchId", "bookmaker", "oddtype")]
+details_change <- details_change[, sd:= sd(diff), by = c("matchId", "bookmaker", "oddtype")]
+details_change <- details_change[, max:= max(diff), by = c("matchId", "bookmaker", "oddtype")]
 
 
 #prepare first & last

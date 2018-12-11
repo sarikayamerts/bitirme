@@ -20,7 +20,7 @@ last[, odd := NULL]
 
 #basic normalization
 #first <- first[, norm_prob := probs/sum(probs), by=list(matchId,bookmaker)]
-last <- last[, norm_prob := probs/sum(probs), by=list(matchId,bookmaker)]
+#last <- last[, norm_prob := probs/sum(probs), by=list(matchId,bookmaker)]
 
 #shin normalization
 #first <- first[, shin_prob := round(shin_prob_calculator(probs), digits = 7) , by=list(matchId,bookmaker)]

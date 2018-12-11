@@ -13,6 +13,8 @@ widening <- function(df, arr){
   
 }
 
+widening_diff <- 
+
 #widening dataframes for features not releated to odds
 widening_others <- function(df, arr){
   odds <- copy(df)

@@ -56,6 +56,7 @@ source("converter.R")
 # 3 - first (matchId, bookmaker, oddtype, odd)
 # 4 - last (matchId, bookmaker, oddtype, odd)
 # 5 - next_matches (matchId, score, home, away, date)
+# 6 - details_change
 ################################################
 source("get_dataframes.R")
 
@@ -95,13 +96,16 @@ source("reshape.R")
 
 ### Creating training and test data together
 
-shin_wide <- widening(last[,-4], bookiesToKeep)
+shin_wide <- widening(last, bookiesToKeep)
 #change_wide <- widening(change, bookiesToKeep) 
 #insider_wide <- widening_others(insider, bookiesToKeep)
 
 #bence böyle widelayalım
 #we will do widening inside of our model prepration
-shin_insider_wide <- merge(last, insider, by = c("matchId", "bookmaker"))
+shin_insider <- merge(lastrps[,c(1:5)], insider, by = c("matchId", "bookmaker"))
+shin_changes <- merge(last, details_change[,c("matchId", "bookmaker", "oddtype", "diff")],by = c("matchId", "bookmaker", "oddtype")) 
+shin_changes_insider <- reshape(shin_changes, idvar = c("matchId", "bookmaker"), timevar = c("oddtype"), direction = "wide")
+shin_changes_insider <- merge(shin_changes, insider, by = c("matchId", "bookmaker"))
 
 features <- merge(shin_wide, matches[, .(matchId, winner, date, week, season)], by = "matchId")
 #features <- merge(features, change_wide, by = "matchId")

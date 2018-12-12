@@ -120,6 +120,7 @@ source("reshape.R")
 #shin_insider:   matchId, bookmaker, shin_prob(1X2), winner, z
 #shin_changes:   matchId, bookmaker, winner, shin_prob(1X2), avg(1X2)
 #shin_changes_insider: matchId, bookmaker, winner, shin_prob(1X2), avg(1X2), z
+shin <- lastrps[,-c("Shin_RPS")]
 shin_insider <- merge(lastrps[,c(1:6)], insider, by = c("matchId", "bookmaker"))
 shin_changes <- merge(last, details_change[,c("matchId", "bookmaker", "oddtype", "avg", "winner")],by = c("matchId", "bookmaker", "oddtype"))
 shin_changes <- reshape(shin_changes, idvar = c("matchId", "bookmaker", "winner"), timevar = c("oddtype"), direction = "wide")
@@ -149,36 +150,43 @@ for (i in noquote(unique(matches[season == "2018-2019"]$week))){
 
 # A = shin_prob 
 A <- models(matches_df =  matches[season == '2017-2018'], 
-            details_df =  lastrps[,-c("Shin_RPS")], 
-            model_type =  "randomforest")
+            details_df =  shin, 
+            model_type =  "random_forest")
 A_ord <- models(matches_df =  matches[season == '2017-2018'], 
             details_df =  lastrps[,-c("Shin_RPS")], 
-            model_type =  "randomforest",
+            model_type =  "random_forest",
             ordered = TRUE)
 # A + B = shin_prob + insider
-AB <- models(matches_df = matches[week == 43][season == '2018-2019'], 
+AB <- models(matches_df = matches[week == 48][season == '2018-2019'], 
              details_df = shin_insider, 
-             model_type = "randomforest")
+             model_type = "random_forest")
 AB_ord <- models(matches_df = matches[season == '2017-2018'], 
              details_df = shin_insider, 
-             model_type = "randomforest",
+             model_type = "random_forest",
              ordered = TRUE)
 # A + C = shin_prob + average change rate
 AC <- models(matches_df = matches[week == 48][season == '2018-2019'], 
              details_df = shin_changes, 
-             model_type = "randomforest")
+             model_type = "random_forest")
 AC_ord <- models(matches_df = matches[week == 48][season == '2018-2019'], 
              details_df = shin_changes, 
-             model_type = "randomforest",
+             model_type = "random_forest",
              ordered = TRUE)
 # A + B + C = shin_prob + insider + average change rate
 ABC <- models(matches_df = matches[week == 48][season == '2018-2019'], 
              details_df = shin_changes_insider, 
-             model_type = "randomforest")
+             model_type = "random_forest")
 ABC_ord <- models(matches_df = matches[week == 48][season == '2018-2019'], 
               details_df = shin_changes_insider, 
-              model_type = "randomforest",
+              model_type = "random_forest",
               ordered = TRUE)
+
+
+for (i in c("random_forest", "decision_tree", "gradient_boosting")){
+  AB <- models(matches_df = matches[week == 48][season == '2018-2019'], 
+               details_df = shin, 
+               model_type = i)
+}
 
 
 ### report of model

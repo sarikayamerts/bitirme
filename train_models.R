@@ -3,24 +3,23 @@ library(e1071)
 
 #models(matches[week == 48][season == "2018-2019"],   #match ids that we want to predict
 #             last_df)                                     #last dataset to we widened, we can add this changes etc.
-models <- function(matches_df, last_df = lastrps, 
+models <- function(matches_df, details_df, 
                    model_type = c("randomforest", "multinomial"),
-                   rf_metric = c("Accuracy", "Kappa", "rps"), rf_imp = c(T,F),
+                   rf_metric = "Accuracy", rf_imp = TRUE,
                    ordered = FALSE){
   test_match_ids <- matches_df$matchId
-  test_data <- last_df[matchId %in% test_match_ids]
+  test_data <- details_df[matchId %in% test_match_ids]
   
   #wide_test <- widening(test_data[,-c("norm_prob")], bookiesToKeep)
   wide_test <- widening_withwinner(test_data, bookiesToKeep)
   min_date <- min(matches[matchId %in% test_match_ids]$date)
-  lower_date <- as.Date(min_date)-365
+  lower_date <- as.Date(min_date)-180
   train_match_ids <- matches[date < min_date][date > lower_date]$matchId
-  train_data <- last_df[matchId %in% train_match_ids]
+  train_data <- details_df[matchId %in% train_match_ids]
   #wide_train <- widening(train_data[,-c("norm_prob")], bookiesToKeep)
   wide_train <- widening_withwinner(train_data, bookiesToKeep)
   wide_train <- wide_train[complete.cases(wide_train)]
   wide_test <- wide_test[complete.cases(wide_test)]
-  test_match_ids <- wide_test$matchId
 
   train <- wide_train[,-c("matchId", "date", "week", "season")]
   test <- wide_test[,-c("matchId", "winner", "date", "week", "season")]
@@ -28,7 +27,7 @@ models <- function(matches_df, last_df = lastrps,
   if (ordered){train$winner <- ordered(train$winner, levels = c("odd1", "oddX", "odd2"))}
     
   if (model_type == "randomforest") {
-    random_forest(train, test, metric_name = rf_metric, varimpTF = rf_imp, is_ordered = ordered)
+    random_forest(train, test, wide_test, metric_name = rf_metric, varimpTF = rf_imp, is_ordered = ordered)
   }
   else if (model_type == "multinomial") {
     train_glmnet(train, test)
@@ -38,7 +37,7 @@ models <- function(matches_df, last_df = lastrps,
 
 #train and test are necessary, requires defined lastrps (maybe use only last?)
 #returns output_prob, testRPS
-random_forest <- function(train, test, 
+random_forest <- function(train, test, wide_test,
                           control_method = "repeatedcv", control_number = 10, repeat_number = 3, 
                           metric_name = "Accuracy", varimpTF = TRUE, is_ordered = FALSE){
   
@@ -55,7 +54,7 @@ random_forest <- function(train, test,
   output_prob <- predict(rf_default, test, "prob")
   colnames(output_prob) <- c("odd1", "oddX", "odd2")
   output_prob$winner <- wide_test$winner
-  output_prob$matchId <- test_match_ids
+  output_prob$matchId <- wide_test$matchId
   setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2", "winner"))
   output_prob <- as.data.table(output_prob)[, RPS := calculate_rps(odd1, oddX, odd2, winner), by = 1:nrow(output_prob)]
   print(output_prob)

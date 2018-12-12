@@ -147,14 +147,38 @@ for (i in noquote(unique(matches[season == "2018-2019"]$week))){
 
 
 
-# A = rps 
-A <- models(matches[week == 48][season == '2018-2019'], lastrps, "randomforest")
-# A + B = rps + insider
-AB <- models(matches[week == 48][season == '2018-2019'], shin_insider, "randomforest")
-# A + C = rps + average change rate
-AC <- models(matches[week == 48][season == '2018-2019'], shin_changes, "randomforest")
-# A + B + C = rps + insider + average change rate
-ABC <- models(matches[week == 48][season == '2018-2019'], shin_changes_insider, "randomforest")
+# A = shin_prob 
+A <- models(matches_df =  matches[week == 48][season == '2018-2019'], 
+            details_df =  lastrps[,-c("Shin_RPS")], 
+            model_type =  "randomforest")
+A_ord <- models(matches_df =  matches[week == 48][season == '2018-2019'], 
+            details_df =  lastrps[,-c("Shin_RPS")], 
+            model_type =  "randomforest",
+            ordered = TRUE)
+# A + B = shin_prob + insider
+AB <- models(matches_df = matches[week == 43][season == '2018-2019'], 
+             details_df = shin_insider, 
+             model_type = "randomforest")
+AB_ord <- models(matches_df = matches[week == 48][season == '2018-2019'], 
+             details_df = shin_insider, 
+             model_type = "randomforest",
+             ordered = TRUE)
+# A + C = shin_prob + average change rate
+AC <- models(matches_df = matches[week == 48][season == '2018-2019'], 
+             details_df = shin_changes, 
+             model_type = "randomforest")
+AC_ord <- models(matches_df = matches[week == 48][season == '2018-2019'], 
+             details_df = shin_changes, 
+             model_type = "randomforest",
+             ordered = TRUE)
+# A + B + C = shin_prob + insider + average change rate
+ABC <- models(matches_df = matches[week == 48][season == '2018-2019'], 
+             details_df = shin_changes_insider, 
+             model_type = "randomforest")
+ABC_ord <- models(matches_df = matches[week == 48][season == '2018-2019'], 
+              details_df = shin_changes_insider, 
+              model_type = "randomforest",
+              ordered = TRUE)
 
 
 ### report of model

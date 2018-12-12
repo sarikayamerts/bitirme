@@ -1,19 +1,25 @@
 library(caret)
 library(e1071)
+library(rpart)
+library(gbm)
 
-#models(matches[week == 48][season == "2018-2019"],   #match ids that we want to predict
-#             last_df)                                     #last dataset to we widened, we can add this changes etc.
+# matches_df = matches[week == 48][season == '2018-2019']
+# details_df =  lastrps[,-c("Shin_RPS")]
 models <- function(matches_df, details_df, 
                    model_type = c("randomforest", "multinomial"),
                    rf_metric = "Accuracy", rf_imp = TRUE,
                    ordered = FALSE){
+  
   test_match_ids <- matches_df$matchId
   test_data <- details_df[matchId %in% test_match_ids]
   
   #wide_test <- widening(test_data[,-c("norm_prob")], bookiesToKeep)
   wide_test <- widening_withwinner(test_data, bookiesToKeep)
   min_date <- min(matches[matchId %in% test_match_ids]$date)
-  lower_date <- as.Date(min_date)-180
+  if (length(test_match_ids) < 12) {prev_date = 180}
+  if (length(test_match_ids) < 30) {prev_date = 400}
+  if (length(test_match_ids) >= 30) {prev_date = 1000}
+  lower_date <- as.Date(min_date) - prev_date
   train_match_ids <- matches[date < min_date][date > lower_date]$matchId
   train_data <- details_df[matchId %in% train_match_ids]
   #wide_train <- widening(train_data[,-c("norm_prob")], bookiesToKeep)
@@ -26,11 +32,17 @@ models <- function(matches_df, details_df,
 
   if (ordered){train$winner <- ordered(train$winner, levels = c("odd1", "oddX", "odd2"))}
     
-  if (model_type == "randomforest") {
+  if (model_type == "random_forest") {
     random_forest(train, test, wide_test, metric_name = rf_metric, varimpTF = rf_imp, is_ordered = ordered)
   }
-  else if (model_type == "multinomial") {
-    train_glmnet(train, test)
+  if (model_type == "multinomial") {
+    train_glmnet(train, test, wide_test)
+  }
+  if (model_type == "gradient_boosting") {
+    gradient_boosting(train, test, wide_test)
+  }
+  if (model_type == "decision_tree") {
+    decision_tree(train, test, wide_test)
   }
 }
 
@@ -59,7 +71,7 @@ random_forest <- function(train, test, wide_test,
   output_prob <- as.data.table(output_prob)[, RPS := calculate_rps(odd1, oddX, odd2, winner), by = 1:nrow(output_prob)]
   print(output_prob)
   
-  testRPS <- lastrps[matchId %in% test_match_ids][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
+  testRPS <- lastrps[matchId %in% wide_test$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
   testRPS <- testRPS[order(testRPS$var),]
   ourRPS <- mean(output_prob$RPS)
   x <- data.frame("***IE 492***", ourRPS)
@@ -69,6 +81,8 @@ random_forest <- function(train, test, wide_test,
   print(testRPS)
   return(ourRPS)
 }
+
+
 #trace prints out that sentence
 #max includes column for maximum oddtype
 train_glmnet <- function(train, test, 
@@ -167,6 +181,69 @@ train_glmnet <- function(train, test,
   return(list(predictions=final_result,cv_stats=cvResultsSummary))
   
 }
+
+
+gradient_boosting <- function(train, test, wide_test){
+  fitControl <- trainControl(method = "cv", number = 30)
+  tune_Grid <-  expand.grid(interaction.depth = 5,
+                            n.trees = 1000,
+                            shrinkage = 0.1,
+                            n.minobsinnode = 50)
+  set.seed(1234)
+  fit <- train(winner ~ ., data = train,
+               method = "gbm",
+               trControl = fitControl,
+               verbose = FALSE,
+               tuneGrid = tune_Grid)
+
+  output_prob <- predict(fit,test,type= "prob")
+  colnames(output_prob) <- c("odd1", "oddX", "odd2")
+  output_prob$winner <- wide_test$winner
+  output_prob$matchId <- wide_test$matchId
+  setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2", "winner"))
+  output_prob <- as.data.table(output_prob)[, RPS := calculate_rps(odd1, oddX, odd2, winner), by = 1:nrow(output_prob)]
+  print(output_prob)
+  
+  testRPS <- lastrps[matchId %in% wide_test$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
+  testRPS <- testRPS[order(testRPS$var),]
+  ourRPS <- mean(output_prob$RPS)
+  x <- data.frame("***IE 492***", ourRPS)
+  names(x) <- names(testRPS)
+  testRPS <- rbind(testRPS, x)
+  testRPS <- testRPS[order(testRPS$var),]
+  print(testRPS)
+  return(ourRPS)}
+
+
+decision_tree <- function(train, test, wide_test){
+  set.seed(1234)
+  fit <- rpart(train$winner ~ ., 
+               data = train, 
+               method="class",
+               control = rpart.control(minsplit = 50, minbucket = 20, cp = 0.01))
+  output_prob <- data.table(predict(fit,test,type= "prob"))
+  colnames(output_prob) <- c("odd1", "oddX", "odd2")
+  output_prob$winner <- wide_test$winner
+  output_prob$matchId <- wide_test$matchId
+  setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2", "winner"))
+  output_prob <- as.data.table(output_prob)[, RPS := calculate_rps(odd1, oddX, odd2, winner), by = 1:nrow(output_prob)]
+  print(output_prob)
+  
+  testRPS <- lastrps[matchId %in% wide_test$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
+  testRPS <- testRPS[order(testRPS$var),]
+  ourRPS <- mean(output_prob$RPS)
+  x <- data.frame("***IE 492***", ourRPS)
+  names(x) <- names(testRPS)
+  testRPS <- rbind(testRPS, x)
+  testRPS <- testRPS[order(testRPS$var),]
+  print(testRPS)
+  return(ourRPS)}
+
+
+
+
+
+
 
 bet_on <- function(){
   best_bookmaker <- testRPS$bookmaker[1]

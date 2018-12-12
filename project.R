@@ -148,10 +148,10 @@ for (i in noquote(unique(matches[season == "2018-2019"]$week))){
 
 
 # A = shin_prob 
-A <- models(matches_df =  matches[week == 48][season == '2018-2019'], 
+A <- models(matches_df =  matches[season == '2017-2018'], 
             details_df =  lastrps[,-c("Shin_RPS")], 
             model_type =  "randomforest")
-A_ord <- models(matches_df =  matches[week == 48][season == '2018-2019'], 
+A_ord <- models(matches_df =  matches[season == '2017-2018'], 
             details_df =  lastrps[,-c("Shin_RPS")], 
             model_type =  "randomforest",
             ordered = TRUE)
@@ -159,7 +159,7 @@ A_ord <- models(matches_df =  matches[week == 48][season == '2018-2019'],
 AB <- models(matches_df = matches[week == 43][season == '2018-2019'], 
              details_df = shin_insider, 
              model_type = "randomforest")
-AB_ord <- models(matches_df = matches[week == 48][season == '2018-2019'], 
+AB_ord <- models(matches_df = matches[season == '2017-2018'], 
              details_df = shin_insider, 
              model_type = "randomforest",
              ordered = TRUE)

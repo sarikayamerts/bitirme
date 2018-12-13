@@ -34,17 +34,49 @@ models <- function(matches_df, details_df,
   if (ordered){train$winner <- ordered(train$winner, levels = c("odd1", "oddX", "odd2"))}
     
   if (model_type == "random_forest") {
-    random_forest(train, test, wide_test, metric_name = rf_metric, varimpTF = rf_imp, is_ordered = ordered)
+    fit <- random_forest(train, test, wide_test, metric_name = rf_metric, varimpTF = rf_imp, is_ordered = ordered)
   }
-  if (model_type == "multinomial") {
-    train_glmnet(train, test, wide_test)
+  if (model_type == "glmnet") {
+    fit <- train_glmnet(train, test, wide_test)
   }
   if (model_type == "gradient_boosting") {
-    gradient_boosting(train, test, wide_test)
+    fit <- gradient_boosting(train, test, wide_test)
   }
   if (model_type == "decision_tree") {
-    decision_tree(train, test, wide_test)
+    fit <- decision_tree(train, test, wide_test)
   }
+  
+  week_number <- unique(matches_df$week)
+  season_number <- unique(matches_df$season)
+  test_size <- nrow(matches_df)
+  ourRPS <- fit[1][[1]]
+  minRPS <- fit[2][[1]]
+  maxRPS <- fit[3][[1]]
+  current_time <- format(Sys.time(), "%Y-%m-%d %X")
+  if(any(grepl('avg', colnames(details_df)))){
+    if ("z" %in% colnames(details_df)){
+      feature <- "A+B+C"
+    }
+    feature <- "A+C"
+  }
+  if (!(any(grepl('avg', colnames(details_df)))) & ("z" %in% colnames(details_df))) {feature <- "A+B"}
+  if (!(any(grepl('avg', colnames(details_df)))) & !("z" %in% colnames(details_df))) {feature <- "A"}  
+  
+  df_summary <- read.csv("summary.csv")
+  
+  df_new <- data.frame(ModelType = model_type,
+                           Feature = feature,
+                           Weeks = week_number,
+                           Seasons = season_number,
+                           TestSize = test_size,
+                           OurRPS = ourRPS,
+                           MinRPS = minRPS,
+                           MaxRPS = maxRPS,
+                           timestamp = current_time)
+  
+  df_summary <- rbind(df_summary, df_new)
+  write.csv(df_summary, file = "summary.csv", row.names = FALSE, quote = FALSE)
+  
 }
 
 
@@ -74,21 +106,24 @@ random_forest <- function(train, test, wide_test,
   
   testRPS <- lastrps[matchId %in% wide_test$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
   testRPS <- testRPS[order(testRPS$var),]
+  minRPS <- round(min(testRPS$var),7)
+  maxRPS <- round(max(testRPS$var),7)
+  
   ourRPS <- mean(output_prob$RPS)
   x <- data.frame("***IE 492***", ourRPS)
   names(x) <- names(testRPS)
   testRPS <- rbind(testRPS, x)
   testRPS <- testRPS[order(testRPS$var),]
   print(testRPS)
-  return(ourRPS)
+  return(list(ourRPS, minRPS, maxRPS))
 }
 
 
 #trace prints out that sentence
 #max includes column for maximum oddtype
-train_glmnet <- function(train, test, 
+train_glmnet <- function(train, test, wide_test,
                          alpha=1,nlambda=50, tune_lambda=T,nofReplications=2,
-                         nFolds=10,trace=T, max = F){
+                         nFolds=10,trace=F, max = F){
   set.seed(1234)
   train$winner <- convert(train$winner)
   train_class <- as.numeric(train$winner)
@@ -181,13 +216,16 @@ train_glmnet <- function(train, test,
   
   testRPS <- lastrps[matchId %in% wide_test$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
   testRPS <- testRPS[order(testRPS$var),]
+  minRPS <- round(min(testRPS$var),7)
+  maxRPS <- round(max(testRPS$var),7)
+  
   ourRPS <- mean(output_prob$RPS)
   x <- data.frame("***IE 492***", ourRPS)
   names(x) <- names(testRPS)
   testRPS <- rbind(testRPS, x)
   testRPS <- testRPS[order(testRPS$var),]
   print(testRPS)
-  return(ourRPS)
+  return(list(ourRPS, minRPS, maxRPS))
 }
 
 
@@ -214,13 +252,17 @@ gradient_boosting <- function(train, test, wide_test){
   
   testRPS <- lastrps[matchId %in% wide_test$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
   testRPS <- testRPS[order(testRPS$var),]
+  minRPS <- round(min(testRPS$var),7)
+  maxRPS <- round(max(testRPS$var),7)
+  
   ourRPS <- mean(output_prob$RPS)
   x <- data.frame("***IE 492***", ourRPS)
   names(x) <- names(testRPS)
   testRPS <- rbind(testRPS, x)
   testRPS <- testRPS[order(testRPS$var),]
   print(testRPS)
-  return(ourRPS)}
+  return(list(ourRPS, minRPS, maxRPS))
+}
 
 
 decision_tree <- function(train, test, wide_test){
@@ -239,13 +281,17 @@ decision_tree <- function(train, test, wide_test){
   
   testRPS <- lastrps[matchId %in% wide_test$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
   testRPS <- testRPS[order(testRPS$var),]
+  minRPS <- round(min(testRPS$var),7)
+  maxRPS <- round(max(testRPS$var),7)
+  
   ourRPS <- mean(output_prob$RPS)
   x <- data.frame("***IE 492***", ourRPS)
   names(x) <- names(testRPS)
   testRPS <- rbind(testRPS, x)
   testRPS <- testRPS[order(testRPS$var),]
   print(testRPS)
-  return(ourRPS)}
+  return(list(ourRPS, minRPS, maxRPS))
+}
 
 
 

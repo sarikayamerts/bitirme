@@ -66,9 +66,9 @@ source("converter.R")
 # 5 - winner
 ################################################
 source("get_dataframes.R")
-View(details)
-View(head(matches))
-View(head(details_change))
+#View(details)
+#View(head(matches))
+#View(head(details_change))
 
 
 ### converting odds to basic and shin probabilities, gives insiders
@@ -112,8 +112,8 @@ source("reshape.R")
 #insider_wide <- widening_others(insider, bookiesToKeep)
 
 #rpslere göre datayı küçültme, bir tür outlier removing
-table(lastrps[Shin_RPS < 0.30]$winner)
-risky_matches <- unique(lastrps[Shin_RPS > 0.30]$matchId)
+#table(lastrps[Shin_RPS < 0.30]$winner)
+#risky_matches <- unique(lastrps[Shin_RPS > 0.30]$matchId)
 
 #we will do widening inside of our model prepration
 #last:           matchId, bookmaker, oddtype, shin_prob
@@ -179,7 +179,7 @@ AC_ord <- models(matches_df = matches[week == 48][season == '2018-2019'],
 ABC <- models(matches_df = matches[week == 48][season == '2018-2019'], 
              details_df = shin_changes_insider, 
              model_type = "random_forest")
-ABC_ord <- models(matches_df = matches[week == 48][season == '2018-2019'], 
+ABC_ord <- models(matches_df = matches[week == 44][season == '2018-2019'], 
               details_df = shin_changes_insider, 
               model_type = "random_forest",
               ordered = TRUE)
@@ -189,9 +189,9 @@ AB <- models(matches_df = next_matches,
              model_type = "random_forest")
 
 
-for (i in c("random_forest", "decision_tree", "gradient_boosting")){
+for (i in c("random_forest", "decision_tree", "glmnet", "gradient_boosting")){
   AB <- models(matches_df = matches[week == 48][season == '2018-2019'], 
-               details_df = shin, 
+               details_df = shin_changes_insider, 
                model_type = i)
 }
 

@@ -17,11 +17,12 @@ models <- function(matches_df, details_df,
   wide_test <- widening_withwinner(test_data, bookiesToKeep)
   min_date <- min(matches[matchId %in% test_match_ids]$date)
   if (length(test_match_ids) < 12) {prev_date = 180}
-  if (length(test_match_ids) < 30) {prev_date = 400}
+  if (length(test_match_ids) >= 12 & length(test_match_ids) < 30) {prev_date = 400}
   if (length(test_match_ids) >= 30) {prev_date = 1000}
   lower_date <- as.Date(min_date) - prev_date
   train_match_ids <- matches[date < min_date][date > lower_date]$matchId
   train_data <- details_df[matchId %in% train_match_ids]
+  #train_data <- train_data[!(matchId %in% risky_matches)]
   #wide_train <- widening(train_data[,-c("norm_prob")], bookiesToKeep)
   wide_train <- widening_withwinner(train_data, bookiesToKeep)
   wide_train <- wide_train[complete.cases(wide_train)]
@@ -88,8 +89,7 @@ random_forest <- function(train, test, wide_test,
 train_glmnet <- function(train, test, 
                          alpha=1,nlambda=50, tune_lambda=T,nofReplications=2,
                          nFolds=10,trace=T, max = F){
-  set.seed(1)
-  train <- train[complete.cases(train)]
+  set.seed(1234)
   train$winner <- convert(train$winner)
   train_class <- as.numeric(train$winner)
   #adds new column for maximum observation (adds odd1 oddX or odd2)

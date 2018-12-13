@@ -111,7 +111,10 @@ source("reshape.R")
 #change_wide <- widening(change, bookiesToKeep) 
 #insider_wide <- widening_others(insider, bookiesToKeep)
 
-#bence böyle widelayalım
+#rpslere göre datayı küçültme, bir tür outlier removing
+table(lastrps[Shin_RPS < 0.30]$winner)
+risky_matches <- unique(lastrps[Shin_RPS > 0.30]$matchId)
+
 #we will do widening inside of our model prepration
 #last:           matchId, bookmaker, oddtype, shin_prob
 #lastrps:        matchId, bookmaker, shin_prob(1X2), winner, season, week, shinrps
@@ -121,7 +124,7 @@ source("reshape.R")
 #shin_changes:   matchId, bookmaker, winner, shin_prob(1X2), avg(1X2)
 #shin_changes_insider: matchId, bookmaker, winner, shin_prob(1X2), avg(1X2), z
 shin <- lastrps[,-c("Shin_RPS")]
-shin_insider <- merge(lastrps[,c(1:6)], insider, by = c("matchId", "bookmaker"))
+shin_insider <- merge(shin, insider, by = c("matchId", "bookmaker"))
 shin_changes <- merge(last, details_change[,c("matchId", "bookmaker", "oddtype", "avg", "winner")],by = c("matchId", "bookmaker", "oddtype"))
 shin_changes <- reshape(shin_changes, idvar = c("matchId", "bookmaker", "winner"), timevar = c("oddtype"), direction = "wide")
 shin_changes_insider <- merge(shin_changes, insider, by = c("matchId", "bookmaker"))
@@ -180,6 +183,10 @@ ABC_ord <- models(matches_df = matches[week == 48][season == '2018-2019'],
               details_df = shin_changes_insider, 
               model_type = "random_forest",
               ordered = TRUE)
+
+AB <- models(matches_df = next_matches, 
+             details_df = shin_insider, 
+             model_type = "random_forest")
 
 
 for (i in c("random_forest", "decision_tree", "gradient_boosting")){

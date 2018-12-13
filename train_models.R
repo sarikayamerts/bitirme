@@ -16,8 +16,8 @@ models <- function(matches_df, details_df,
   #wide_test <- widening(test_data[,-c("norm_prob")], bookiesToKeep)
   wide_test <- widening_withwinner(test_data, bookiesToKeep)
   min_date <- min(matches[matchId %in% test_match_ids]$date)
-  if (length(test_match_ids) < 12) {prev_date = 180}
-  if (length(test_match_ids) >= 12 & length(test_match_ids) < 30) {prev_date = 400}
+  #if (length(test_match_ids) < 12) {prev_date = 180}
+  if (length(test_match_ids) < 30) {prev_date = 400}
   if (length(test_match_ids) >= 30) {prev_date = 1000}
   lower_date <- as.Date(min_date) - prev_date
   train_match_ids <- matches[date < min_date][date > lower_date]$matchId
@@ -92,6 +92,7 @@ train_glmnet <- function(train, test,
   set.seed(1234)
   train$winner <- convert(train$winner)
   train_class <- as.numeric(train$winner)
+  train <- train[,-c("winner")]
   #adds new column for maximum observation (adds odd1 oddX or odd2)
   if (max) {
     glm_train_data$max <- do.call(pmax, glm_train_data)
@@ -169,17 +170,24 @@ train_glmnet <- function(train, test,
   
   final_glmnet_fit <- glmnet(as.matrix(train),as.factor(train_class),family="multinomial", alpha = alpha,lambda=cvResultsSummary$lambda.min)
   predicted_probabilities <- predict(final_glmnet_fit, as.matrix(test), type = "response")
+  output_prob <- data.table(predicted_probabilities[,,])
   
-  #check order of predictions
-  order_of_class <- attr(predicted_probabilities,'dimnames')[[2]]
-  new_order <- c(which(order_of_class=='odd1'),which(order_of_class=='oddX'),which(order_of_class=='odd2'))
+  colnames(output_prob) <- c("odd1", "oddX", "odd2")
+  output_prob$winner <- wide_test$winner
+  output_prob$matchId <- wide_test$matchId
+  setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2", "winner"))
+  output_prob <- as.data.table(output_prob)[, RPS := calculate_rps(odd1, oddX, odd2, winner), by = 1:nrow(output_prob)]
+  print(output_prob)
   
-  #  final_result=data.table(test_features[,list(matchId,winner)],predicted_probabilities[,new_order,1])
-  final_result <- data.table(test_features[,list(matchId,winner)],predicted_probabilities[,,])
-  names(final_result) <- c("matchId", "winner", "odd1", "oddX", "odd2")
-  
-  return(list(predictions=final_result,cv_stats=cvResultsSummary))
-  
+  testRPS <- lastrps[matchId %in% wide_test$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
+  testRPS <- testRPS[order(testRPS$var),]
+  ourRPS <- mean(output_prob$RPS)
+  x <- data.frame("***IE 492***", ourRPS)
+  names(x) <- names(testRPS)
+  testRPS <- rbind(testRPS, x)
+  testRPS <- testRPS[order(testRPS$var),]
+  print(testRPS)
+  return(ourRPS)
 }
 
 

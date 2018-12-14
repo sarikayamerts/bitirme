@@ -17,8 +17,8 @@ models <- function(matches_df, details_df,
   wide_test <- widening_withwinner(test_data, bookiesToKeep)
   min_date <- min(matches[matchId %in% test_match_ids]$date)
   #if (length(test_match_ids) < 12) {prev_date = 180}
-  if (length(test_match_ids) < 30) {prev_date = 400}
-  if (length(test_match_ids) >= 30) {prev_date = 1000}
+  if (length(test_match_ids) < 30) {prev_date = 365}
+  if (length(test_match_ids) >= 30) {prev_date = 730}
   lower_date <- as.Date(min_date) - prev_date
   train_match_ids <- matches[date < min_date][date > lower_date]$matchId
   train_data <- details_df[matchId %in% train_match_ids]
@@ -47,6 +47,7 @@ models <- function(matches_df, details_df,
   }
   
   week_number <- unique(matches_df$week)
+  if (length(week_number) > 1) {week_number = paste(length(week_number), "weeks")}
   season_number <- unique(matches_df$season)
   test_size <- nrow(matches_df)
   ourRPS <- fit[1][[1]]
@@ -57,7 +58,9 @@ models <- function(matches_df, details_df,
     if ("z" %in% colnames(details_df)){
       feature <- "A+B+C"
     }
-    feature <- "A+C"
+    if (!"z" %in% colnames(details_df)){
+      feature <- "A+C"
+    }
   }
   if (!(any(grepl('avg', colnames(details_df)))) & ("z" %in% colnames(details_df))) {feature <- "A+B"}
   if (!(any(grepl('avg', colnames(details_df)))) & !("z" %in% colnames(details_df))) {feature <- "A"}  
@@ -66,6 +69,7 @@ models <- function(matches_df, details_df,
   
   df_new <- data.frame(ModelType = model_type,
                            Feature = feature,
+                           Ordered = ordered,
                            Weeks = week_number,
                            Seasons = season_number,
                            TestSize = test_size,

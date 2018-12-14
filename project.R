@@ -138,25 +138,12 @@ source("variable_importance.R")
 
 source("train_models.R")
 
-models(matches[date > '2017-07-15'], "randomforest")
-models(matches[season == '2018-2019'], "multinomial")
-models(matches[date >= '2018-11-28'][date <= '2018-12-01'])
-models(matches[week == 48][season == '2018-2019'], "randomforest")
-
-## for all weeks in a season
-for (i in noquote(unique(matches[season == "2018-2019"]$week))){
-  paste("Season 2018-2019, week ", i)
-  models(matches[week == i][season == '2018-2019'], "randomforest")
-}
-
-
-
 # A = shin_prob 
 A <- models(matches_df =  matches[season == '2017-2018'], 
             details_df =  shin, 
             model_type =  "random_forest")
 A_ord <- models(matches_df =  matches[season == '2017-2018'], 
-            details_df =  lastrps[,-c("Shin_RPS")], 
+            details_df =  shin, 
             model_type =  "random_forest",
             ordered = TRUE)
 # A + B = shin_prob + insider
@@ -188,13 +175,57 @@ AB <- models(matches_df = next_matches,
              details_df = shin_insider, 
              model_type = "random_forest")
 
-
-for (i in c("random_forest", "decision_tree", "glmnet", "gradient_boosting")){
-  AB <- models(matches_df = matches[week == 48][season == '2018-2019'], 
-               details_df = shin_changes_insider, 
-               model_type = i)
+for (n in noquote(unique(matches[season == "2018-2019"]$week))){
+  for (i in c("decision_tree", "gradient_boosting", "random_forest")){
+    AB <- models(matches_df = matches[week == n][season == '2018-2019'], 
+                 details_df = shin_changes_insider, 
+                 model_type = i, ordered = TRUE)
+  }
+  for (i in c("decision_tree", "gradient_boosting", "random_forest", "glmnet")){
+    AB <- models(matches_df = matches[week == n][season == '2018-2019'], 
+                 details_df = shin_changes_insider, 
+                 model_type = i, ordered = FALSE)
+  }
 }
 
+for (n in noquote(unique(matches[season == "2018-2019"]$week))){
+  for (i in c("decision_tree", "gradient_boosting", "random_forest")){
+    AB <- models(matches_df = matches[week == n][season == '2018-2019'], 
+                 details_df = shin_changes, 
+                 model_type = i, ordered = TRUE)
+  }
+  for (i in c("decision_tree", "gradient_boosting", "random_forest", "glmnet")){
+    AB <- models(matches_df = matches[week == n][season == '2018-2019'], 
+                 details_df = shin_changes, 
+                 model_type = i, ordered = FALSE)
+  }
+}
+
+for (n in noquote(unique(matches[season == "2018-2019"]$week))){
+  for (i in c("decision_tree", "gradient_boosting", "random_forest")){
+    AB <- models(matches_df = matches[week == n][season == '2018-2019'], 
+                 details_df = shin_insider, 
+                 model_type = i, ordered = TRUE)
+  }
+  for (i in c("decision_tree", "gradient_boosting", "random_forest", "glmnet")){
+    AB <- models(matches_df = matches[week == n][season == '2018-2019'], 
+                 details_df = shin_insider, 
+                 model_type = i, ordered = FALSE)
+  }
+}
+
+for (n in noquote(unique(matches[season == "2018-2019"]$week))){
+  for (i in c("decision_tree", "gradient_boosting", "random_forest")){
+    AB <- models(matches_df = matches[week == n][season == '2018-2019'], 
+                 details_df = shin, 
+                 model_type = i, ordered = TRUE)
+  }
+  for (i in c("decision_tree", "gradient_boosting", "random_forest", "glmnet")){
+    AB <- models(matches_df = matches[week == n][season == '2018-2019'], 
+                 details_df = shin, 
+                 model_type = i, ordered = FALSE)
+  }
+}
 
 ### report of model
 # functions in this file:

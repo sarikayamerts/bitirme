@@ -1,14 +1,11 @@
-library(caret)
-library(e1071)
-library(rpart)
-library(gbm)
+# Continuation Ratio Model for Ordinal Data - vglmContRatio
+# Cumulative Probability Model for Ordinal Data - vglmCumulative
+# Penalized Ordinal Regression - ordinalNet
 
-# matches_df = matches[week == 48][season == '2018-2019']
-# details_df =  lastrps[,-c("Shin_RPS")]
-models <- function(matches_df, details_df, 
-                   model_type = c("randomforest", "multinomial"),
-                   rf_metric = "Accuracy", rf_imp = TRUE,
-                   ordered = FALSE){
+unique(matches[season == '2018-2019']$week)
+# matches_df = matches[week == 44][season == '2018-2019']
+# details_df = lastrps[,-c("Shin_RPS")]
+models <- function(matches_df, details_df, fit_model = NULL){
   
   test_match_ids <- matches_df$matchId
   test_data <- details_df[matchId %in% test_match_ids]
@@ -18,7 +15,6 @@ models <- function(matches_df, details_df,
   min_date <- min(matches[matchId %in% test_match_ids]$date)
   #if (length(test_match_ids) < 12) {prev_date = 180}
   if (length(test_match_ids) < 30) {prev_date = 365}
-  if (length(test_match_ids) >= 30) {prev_date = 730}
   lower_date <- as.Date(min_date) - prev_date
   train_match_ids <- matches[date < min_date][date > lower_date]$matchId
   train_data <- details_df[matchId %in% train_match_ids]
@@ -34,17 +30,19 @@ models <- function(matches_df, details_df,
   if (ordered){train$winner <- ordered(train$winner, levels = c("odd1", "oddX", "odd2"))}
     
   if (model_type == "random_forest") {
-    fit <- random_forest(train, test, wide_test, metric_name = rf_metric, varimpTF = rf_imp, is_ordered = ordered)
+    fit <- random_forest(train, test, wide_test, NULL, is_ordered = ordered)
   }
   if (model_type == "glmnet") {
-    fit <- train_glmnet(train, test, wide_test)
+    fit <- train_glmnet(train, test, wide_test, fit_model, is_ordered = ordered)
   }
   if (model_type == "gradient_boosting") {
-    fit <- gradient_boosting(train, test, wide_test)
+    fit <- gradient_boosting(train, test, wide_test, fit_model, is_ordered = ordered)
   }
   if (model_type == "decision_tree") {
     fit <- decision_tree(train, test, wide_test)
   }
+  prev_model <- fit[1][[1]]
+  prev_rps <- fit[2][[1]]
   
   week_number <- unique(matches_df$week)
   if (length(week_number) > 1) {week_number = paste(length(week_number), "weeks")}
@@ -86,40 +84,56 @@ models <- function(matches_df, details_df,
 
 #train and test are necessary, requires defined lastrps (maybe use only last?)
 #returns output_prob, testRPS
-random_forest <- function(train, test, wide_test,
-                          control_method = "repeatedcv", control_number = 10, repeat_number = 3, 
-                          metric_name = "Accuracy", varimpTF = TRUE, is_ordered = FALSE){
+random_forest <- function(train, test, wide_test, fit_model = NULL,
+                          control_method = "repeatedcv", control_number = 10, repeat_number = 10, 
+                          is_ordered = FALSE){
   
-  control <- trainControl(method = control_method, number = control_number, repeats = repeat_number)
-  #metric can be Accuracy, ROC, RMSE, logLoss
-  set.seed(7)
-  mtry <- sqrt(ncol(train))
-  tunegrid <- expand.grid(.mtry=mtry)
+  if (!is.null(fit_model)){
+    output_prob <- predict(fit_model, test, "prob")
+    colnames(output_prob) <- c("odd1", "oddX", "odd2")
+    output_prob$winner <- wide_test$winner
+    output_prob$matchId <- wide_test$matchId
+    setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2", "winner"))
+    output_prob <- as.data.table(output_prob)[, RPS := calculate_rps(odd1, oddX, odd2, winner), by = 1:nrow(output_prob)]
+  }
   
-  if (!is_ordered){rf_default <- train(factor(convert(winner))~., data=train, method="rf", metric=metric_name, tuneGrid=tunegrid, trControl=control, importance = varimpTF)}
-  else{rf_default <- train(winner~., data=train, method="rf", metric=metric_name, tuneGrid=tunegrid, trControl=control, importance = varimpTF)}
-  
-  varImp(rf_default)
-  output_prob <- predict(rf_default, test, "prob")
-  colnames(output_prob) <- c("odd1", "oddX", "odd2")
-  output_prob$winner <- wide_test$winner
-  output_prob$matchId <- wide_test$matchId
-  setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2", "winner"))
-  output_prob <- as.data.table(output_prob)[, RPS := calculate_rps(odd1, oddX, odd2, winner), by = 1:nrow(output_prob)]
-  print(output_prob)
-  
-  testRPS <- lastrps[matchId %in% wide_test$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
-  testRPS <- testRPS[order(testRPS$var),]
-  minRPS <- round(min(testRPS$var),7)
-  maxRPS <- round(max(testRPS$var),7)
-  
-  ourRPS <- mean(output_prob$RPS)
-  x <- data.frame("***IE 492***", ourRPS)
-  names(x) <- names(testRPS)
-  testRPS <- rbind(testRPS, x)
-  testRPS <- testRPS[order(testRPS$var),]
-  print(testRPS)
-  return(list(ourRPS, minRPS, maxRPS))
+  if (is.null(fit_model)){
+    control <- trainControl(method = control_method, number = control_number, repeats = repeat_number, search = "grid")
+    #metric can be Accuracy, ROC, RMSE, logLoss
+    set.seed(1234)
+    mtry <- sqrt(ncol(train))
+    tunegrid <- expand.grid(.mtry=mtry)
+    
+    rf_default <- train(factor(convert(winner))~., 
+                        data=train, 
+                        method="rf", 
+                        metric="Accuracy", 
+                        tuneGrid=tunegrid, 
+                        trControl=control, 
+                        importance = T)
+
+    varImp(rf_default)
+    output_prob <- predict(rf_default, test, "prob")
+    colnames(output_prob) <- c("odd1", "oddX", "odd2")
+    output_prob$winner <- wide_test$winner
+    output_prob$matchId <- wide_test$matchId
+    setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2", "winner"))
+    output_prob <- as.data.table(output_prob)[, RPS := calculate_rps(odd1, oddX, odd2, winner), by = 1:nrow(output_prob)]
+    print(output_prob)
+    
+    testRPS <- lastrps[matchId %in% wide_test$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
+    testRPS <- testRPS[order(testRPS$var),]
+    minRPS <- round(min(testRPS$var),7)
+    maxRPS <- round(max(testRPS$var),7)
+    
+    ourRPS <- mean(output_prob$RPS)
+    x <- data.frame("***IE 492***", ourRPS)
+    names(x) <- names(testRPS)
+    testRPS <- rbind(testRPS, x)
+    testRPS <- testRPS[order(testRPS$var),]
+    print(testRPS)
+    return(list(ourRPS, minRPS, maxRPS))
+  }
 }
 
 
@@ -233,12 +247,16 @@ train_glmnet <- function(train, test, wide_test,
 }
 
 
-gradient_boosting <- function(train, test, wide_test){
-  fitControl <- trainControl(method = "cv", number = 30)
-  tune_Grid <-  expand.grid(interaction.depth = 5,
-                            n.trees = 1000,
-                            shrinkage = 0.1,
-                            n.minobsinnode = 50)
+gradient_boosting <- function(train, test, wide_test, fit_model){
+  
+  fitControl <- trainControl(method = "cv", number = 10)
+  tune_Grid <-  expand.grid(interaction.depth = c(1,3,5),
+                            n.trees = (1:5)*200,
+                            shrinkage = c(0.1),
+                            n.minobsinnode = c(5,10))
+  nrow(tune_Grid)
+  plot(tune_Grid)
+  plot(gbmFit, plotType = "level")
   set.seed(1234)
   fit <- train(winner ~ ., data = train,
                method = "gbm",
@@ -253,6 +271,15 @@ gradient_boosting <- function(train, test, wide_test){
   setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2", "winner"))
   output_prob <- as.data.table(output_prob)[, RPS := calculate_rps(odd1, oddX, odd2, winner), by = 1:nrow(output_prob)]
   print(output_prob)
+  ourRPS <- mean(output_prob$RPS)
+  
+  df_summary <- read.csv("tuning.csv")
+  
+  df_new <- data.frame(cbind(fit$bestTune, fitControl$method, ourRPS))
+  
+  df_summary <- rbind(df_summary, df_new)
+  write.csv(df_summary, file = "tuning.csv", row.names = FALSE, quote = FALSE)
+  
   
   testRPS <- lastrps[matchId %in% wide_test$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
   testRPS <- testRPS[order(testRPS$var),]
@@ -269,32 +296,36 @@ gradient_boosting <- function(train, test, wide_test){
 }
 
 
-decision_tree <- function(train, test, wide_test){
+decision_tree <- function(train, test, wide_test, fit_model = NULL){
   set.seed(1234)
-  fit <- rpart(train$winner ~ ., 
-               data = train, 
-               method="class",
-               control = rpart.control(minsplit = 50, minbucket = 20, cp = 0.01))
-  output_prob <- data.table(predict(fit,test,type= "prob"))
-  colnames(output_prob) <- c("odd1", "oddX", "odd2")
-  output_prob$winner <- wide_test$winner
-  output_prob$matchId <- wide_test$matchId
-  setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2", "winner"))
-  output_prob <- as.data.table(output_prob)[, RPS := calculate_rps(odd1, oddX, odd2, winner), by = 1:nrow(output_prob)]
-  print(output_prob)
   
-  testRPS <- lastrps[matchId %in% wide_test$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
-  testRPS <- testRPS[order(testRPS$var),]
-  minRPS <- round(min(testRPS$var),7)
-  maxRPS <- round(max(testRPS$var),7)
+  # if (!is.null(fit_model)){
+  #   output_prob <- predict(fit_model, test, "prob")
+  #   colnames(output_prob) <- c("odd1", "oddX", "odd2")
+  #   output_prob$matchId <- wide_test$matchId
+  #   setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
+  #   output_prob <- comparison(output_prob, rank = T)
+  #   ourRPS <- mean(output_prob$RPS)
+  #   return(list(fit, ourRPS))
+  # }
   
-  ourRPS <- mean(output_prob$RPS)
-  x <- data.frame("***IE 492***", ourRPS)
-  names(x) <- names(testRPS)
-  testRPS <- rbind(testRPS, x)
-  testRPS <- testRPS[order(testRPS$var),]
-  print(testRPS)
-  return(list(ourRPS, minRPS, maxRPS))
+  # if (is.null(fit_model)){
+    fit <-  train(y = factor(convert(train$winner)), 
+                  x = train[,-c("winner")], 
+                  method = "rpart", 
+                  tuneGrid = expand.grid(.cp = c((1:15)*0.005)),
+                  trControl = trainControl(method = "repeatedcv", number = 10, repeats = 10))
+
+    output_prob <- data.frame(predict(fit,test,type= "prob"))
+    colnames(output_prob) <- c("odd1", "oddX", "odd2")
+    output_prob$matchId <- wide_test$matchId
+    setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
+    output_prob <- comparison(output_prob, T)
+    ourRPS <- mean(output_prob$RPS)
+    
+    
+    return(list(fit, ourRPS))
+  # }
 }
 
 

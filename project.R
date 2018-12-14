@@ -20,17 +20,25 @@ if (grepl("mert", toString(getwd()))){
 if (grepl("Hp", toString(getwd()))) {
   setwd("C:/Users/Hp/Desktop/Bitirme/bitirme")
 }
+#buraya sizin wd'ye özel bir string yazıp github reposunun directory'sini koyarsınız
+if (grepl("mustafa", toString(getwd()))) {
+  setwd()
+}
 
 library(readr)
 library(graphics)
 library(data.table)
 library(verification)
 library(glmnet)
-library(TunePareto)
+#library(TunePareto)
 library(anytime) 
-library(plotly)
+#library(plotly)
 library(stats)
-library(PMCMR)
+#library(PMCMR)
+library(caret)
+library(e1071)
+library(rpart)
+library(gbm)
 
 ##### FUNCTIONS TO BE USED
 
@@ -71,6 +79,8 @@ source("get_dataframes.R")
 #View(head(details_change))
 
 
+source("comparison.R")
+
 ### converting odds to basic and shin probabilities, gives insiders
 source("convert_odds.R")
 
@@ -83,12 +93,12 @@ source("convert_odds.R")
 # lastrps <<<< required for models
 source("calculate_rps.R")
 ### calculate average RPS for all bookmakers using Basic and Shin probs
-source("bookmaker_comparison.R")
+#source("bookmaker_comparison.R")
 ### statistical tests
-source("statistical_tests.R")
-basic_vs_shin <- basic_vs_shin(lastrps)
-bookie_friedman <- bookmaker_comp_friedman(lastrps, bookiesToKeep)
-nemenyi_test_outputs <- bookmaker_comp_plot(lastrps,bookiesToKeep)
+#source("statistical_tests.R")
+#basic_vs_shin <- basic_vs_shin(lastrps)
+#bookie_friedman <- bookmaker_comp_friedman(lastrps, bookiesToKeep)
+#nemenyi_test_outputs <- bookmaker_comp_plot(lastrps,bookiesToKeep)
 ###############################################
 
 
@@ -134,7 +144,7 @@ shin_changes_insider <- merge(shin_changes, insider, by = c("matchId", "bookmake
 #features <- merge(features, insider_wide, by = "matchId")
 
 
-source("variable_importance.R")
+#source("variable_importance.R")
 
 source("train_models.R")
 
@@ -147,7 +157,7 @@ A_ord <- models(matches_df =  matches[season == '2017-2018'],
             model_type =  "random_forest",
             ordered = TRUE)
 # A + B = shin_prob + insider
-AB <- models(matches_df = matches[week == 48][season == '2018-2019'], 
+AB <- models(matches_df = matches[week == 45][season == '2018-2019'], 
              details_df = shin_insider, 
              model_type = "random_forest")
 AB_ord <- models(matches_df = matches[season == '2017-2018'], 
@@ -171,9 +181,10 @@ ABC_ord <- models(matches_df = matches[week == 44][season == '2018-2019'],
               model_type = "random_forest",
               ordered = TRUE)
 
-AB <- models(matches_df = next_matches, 
+AB <- models(matches_df = matches[week == 44][season == '2018-2019'], 
              details_df = shin_insider, 
-             model_type = "random_forest")
+             fit_model = NULL,
+             model_type = "decision_tree")
 
 for (n in noquote(unique(matches[season == "2018-2019"]$week))){
   for (i in c("decision_tree", "gradient_boosting", "random_forest")){
@@ -226,14 +237,3 @@ for (n in noquote(unique(matches[season == "2018-2019"]$week))){
                  model_type = i, ordered = FALSE)
   }
 }
-
-### report of model
-# functions in this file:
-# 1 - model_report
-source("model_report.R")
-
-
-### NOTE: Change the comment below about the input type
-myRPS <- model_report("GLMNET", n, "Basic + Shin 48 Week", TrainSet, TestSet, trainStart, testStart, predictions, testRPS)
-
-myRPS

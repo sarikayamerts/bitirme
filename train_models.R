@@ -2,7 +2,7 @@
 # Cumulative Probability Model for Ordinal Data - vglmCumulative
 # Penalized Ordinal Regression - ordinalNet
 
-unique(matches[season == '2018-2019']$week)
+#unique(matches[season == '2018-2019']$week)
 # matches_df = matches[week == 44][season == '2018-2019']
 # details_df = lastrps[,-c("Shin_RPS")]
 models <- function(matches_df, details_df, fit_model = NULL){
@@ -310,12 +310,25 @@ decision_tree <- function(train, test, wide_test, fit_model = NULL){
   # }
   
   # if (is.null(fit_model)){
+  if (ordered){
+    fit <-  train(y = train$winner, 
+                  x = train[,-c("winner")], 
+                  method = "rpart", 
+                  tuneGrid = expand.grid(.cp = c((1)*0.005)),
+                  trControl = trainControl(method = "repeatedcv", 
+                                           number = 1, 
+                                           repeats = 1,
+                                           classProbs = T,
+                                           summaryFunction = rpsCaret))
+  }  
+  if (!ordered){
     fit <-  train(y = factor(convert(train$winner)), 
                   x = train[,-c("winner")], 
                   method = "rpart", 
                   tuneGrid = expand.grid(.cp = c((1:15)*0.005)),
                   trControl = trainControl(method = "repeatedcv", number = 10, repeats = 10))
-
+  }
+   
     output_prob <- data.frame(predict(fit,test,type= "prob"))
     colnames(output_prob) <- c("odd1", "oddX", "odd2")
     output_prob$matchId <- wide_test$matchId
@@ -329,10 +342,47 @@ decision_tree <- function(train, test, wide_test, fit_model = NULL){
 }
 
 
+rpsCaret<- function (data, lev = NULL, model = NULL) 
+{ 
+  require(verification)
+  if (!all(levels(data[, "pred"]) == levels(data[, "obs"]))) 
+    stop("levels of observed and predicted data do not match")
+  #rownames(data) <- NULL
+  #print(convert_factor(data$obs))
+  print("heyyooo")
+  print(data)
+  #rpsObject <- try(verification::rps(obs = convert_factor(data$obs), data[, lev[1:3]]),silent=TRUE)
+  #print(rpsObject)
+  rpsmeasH <- if (class(rpsObject)[1] == "try-error") {
+    NA
+  } else {rpsObject$metrics[[1]] 
+  }
+  out<-rpsmeasH 
+  names(out) <- c("RPS")
+  out 
+}
+environment(rpsCaret) <- asNamespace('caret')
+
+fit <-  train(y = convert_factor(train$winner), 
+              x = train[,-c("winner")], 
+              method = "rpart", 
+              tuneGrid = expand.grid(.cp = c((1:10)*0.01)),
+              trControl = trainControl(method = "repeatedcv", 
+                                       number = 1, 
+                                       repeats = 1,
+                                       classProbs = T,
+                                       summaryFunction = rpsCaret))
 
 
 
+tc <- trainControl(method="cv",classProb=TRUE,summaryFunction=roc)
 
+if (d == "odd1") {d=1}
+if (d == "oddX") {d=2}
+if (d == "odd2") {d=3}
+pred = t(matrix(c(a, b, c)))
+output <- rps(obs = c(d), pred = pred)
+output$rps
 
 bet_on <- function(){
   best_bookmaker <- testRPS$bookmaker[1]

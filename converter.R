@@ -18,3 +18,10 @@ convert <- function(arr){
     arr
   }
 }
+
+convert_factor <- function(arr){
+  if (all(unique(arr) %in% noquote(c("odd1", "oddX", "odd2")))){
+    arr <- revalue(arr, c("odd1" = 1, "oddX" = 2 ,"odd2" = 3)) 
+    arr
+  }
+}

@@ -39,6 +39,7 @@ library(caret)
 library(e1071)
 library(rpart)
 library(gbm)
+library(plyr)
 
 ##### FUNCTIONS TO BE USED
 
@@ -151,7 +152,7 @@ source("train_models.R")
 # A = shin_prob 
 A <- models(matches_df =  matches[season == '2017-2018'], 
             details_df =  shin, 
-            model_type =  "random_forest")
+            model_type =  "glmnet")
 A_ord <- models(matches_df =  matches[season == '2017-2018'], 
             details_df =  shin, 
             model_type =  "random_forest",

@@ -5,7 +5,7 @@
 #unique(matches[season == '2018-2019']$week)
 # matches_df = matches[week == 44][season == '2018-2019']
 # details_df = lastrps[,-c("Shin_RPS")]
-models <- function(matches_df, details_df, fit_model = NULL){
+models <- function(matches_df, details_df, fit_model = NULL,model_type = c("randomforest", "glmnet","gradient_boosting","decision_tree"),ordered = FALSE) {
   
   test_match_ids <- matches_df$matchId
   test_data <- details_df[matchId %in% test_match_ids]
@@ -14,7 +14,7 @@ models <- function(matches_df, details_df, fit_model = NULL){
   wide_test <- widening_withwinner(test_data, bookiesToKeep)
   min_date <- min(matches[matchId %in% test_match_ids]$date)
   #if (length(test_match_ids) < 12) {prev_date = 180}
-  if (length(test_match_ids) < 30) {prev_date = 365}
+  prev_date = 365
   lower_date <- as.Date(min_date) - prev_date
   train_match_ids <- matches[date < min_date][date > lower_date]$matchId
   train_data <- details_df[matchId %in% train_match_ids]
@@ -30,19 +30,19 @@ models <- function(matches_df, details_df, fit_model = NULL){
   if (ordered){train$winner <- ordered(train$winner, levels = c("odd1", "oddX", "odd2"))}
     
   if (model_type == "random_forest") {
-    fit <- random_forest(train, test, wide_test, NULL, is_ordered = ordered)
+    fit <- random_forest(train, test, wide_test, fit_model, is_ordered = ordered)
   }
   if (model_type == "glmnet") {
-    fit <- train_glmnet(train, test, wide_test, fit_model, is_ordered = ordered)
+    fit <- train_glmnet(train, test, wide_test, fit_model)
   }
   if (model_type == "gradient_boosting") {
-    fit <- gradient_boosting(train, test, wide_test, fit_model, is_ordered = ordered)
+    fit <- gradient_boosting(train, test, wide_test, fit_model)
   }
   if (model_type == "decision_tree") {
     fit <- decision_tree(train, test, wide_test)
   }
-  prev_model <- fit[1][[1]]
-  prev_rps <- fit[2][[1]]
+  prev_model <- fit[1][[1]] #Bunlar nerde kullaniliyor
+  prev_rps <- fit[2][[1]]   ##Bunlar nerde kullaniliyor bu scriptte baska yerde yoklar
   
   week_number <- unique(matches_df$week)
   if (length(week_number) > 1) {week_number = paste(length(week_number), "weeks")}
@@ -95,7 +95,7 @@ random_forest <- function(train, test, wide_test, fit_model = NULL,
     output_prob$matchId <- wide_test$matchId
     setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2", "winner"))
     output_prob <- as.data.table(output_prob)[, RPS := calculate_rps(odd1, oddX, odd2, winner), by = 1:nrow(output_prob)]
-  }
+  } #burda bi if() in icinde train olmasi senaryosu gerekmiyor mu, hafta hafta kayarken yeni haftayi train setine ekleyip tekrar train etmeliyiz bence?
   
   if (is.null(fit_model)){
     control <- trainControl(method = control_method, number = control_number, repeats = repeat_number, search = "grid")
@@ -104,14 +104,27 @@ random_forest <- function(train, test, wide_test, fit_model = NULL,
     mtry <- sqrt(ncol(train))
     tunegrid <- expand.grid(.mtry=mtry)
     
-    rf_default <- train(factor(convert(winner))~., 
-                        data=train, 
-                        method="rf", 
-                        metric="Accuracy", 
-                        tuneGrid=tunegrid, 
-                        trControl=control, 
-                        importance = T)
-
+    if(is_ordered){
+      rf_default <- train(winner~., 
+                          data=train, 
+                          method="rf", 
+                          metric="Accuracy", 
+                          tuneGrid=tunegrid, 
+                          trControl=control, 
+                          importance = T)
+      
+    }else{
+      rf_default <- train(factor(convert(winner))~., 
+                          data=train, 
+                          method="rf", 
+                          metric="Accuracy", 
+                          tuneGrid=tunegrid, 
+                          trControl=control, 
+                          importance = T)
+    }
+    
+   
+    
     varImp(rf_default)
     output_prob <- predict(rf_default, test, "prob")
     colnames(output_prob) <- c("odd1", "oddX", "odd2")
@@ -139,9 +152,20 @@ random_forest <- function(train, test, wide_test, fit_model = NULL,
 
 #trace prints out that sentence
 #max includes column for maximum oddtype
-train_glmnet <- function(train, test, wide_test,
+train_glmnet <- function(train, test, wide_test, fit_model = NULL,
                          alpha=1,nlambda=50, tune_lambda=T,nofReplications=2,
                          nFolds=10,trace=F, max = F){
+  # if (!is.null(fit_model)){
+  #   output_prob <- predict(fit_model, test, "prob")
+  #   colnames(output_prob) <- c("odd1", "oddX", "odd2")
+  #   output_prob$matchId <- wide_test$matchId
+  #   setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
+  #   output_prob <- comparison(output_prob, rank = T)
+  #   ourRPS <- mean(output_prob$RPS)
+  #   return(list(fit, ourRPS))
+  # }
+  
+  # if (is.null(fit_model)){
   set.seed(1234)
   train$winner <- convert(train$winner)
   train_class <- as.numeric(train$winner)
@@ -244,19 +268,31 @@ train_glmnet <- function(train, test, wide_test,
   testRPS <- testRPS[order(testRPS$var),]
   print(testRPS)
   return(list(ourRPS, minRPS, maxRPS))
+  # }
 }
 
 
 gradient_boosting <- function(train, test, wide_test, fit_model){
   
+  # if (!is.null(fit_model)){
+  #   output_prob <- predict(fit_model, test, "prob")
+  #   colnames(output_prob) <- c("odd1", "oddX", "odd2")
+  #   output_prob$matchId <- wide_test$matchId
+  #   setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
+  #   output_prob <- comparison(output_prob, rank = T)
+  #   ourRPS <- mean(output_prob$RPS)
+  #   return(list(fit, ourRPS))
+  # }
+  
+  # if (is.null(fit_model)){
   fitControl <- trainControl(method = "cv", number = 10)
   tune_Grid <-  expand.grid(interaction.depth = c(1,3,5),
                             n.trees = (1:5)*200,
                             shrinkage = c(0.1),
                             n.minobsinnode = c(5,10))
   nrow(tune_Grid)
-  plot(tune_Grid)
-  plot(gbmFit, plotType = "level")
+  #plot(tune_Grid) #Error in plot.new() : figure margins too large 
+  #plot(gbmFit, plotType = "level")
   set.seed(1234)
   fit <- train(winner ~ ., data = train,
                method = "gbm",
@@ -293,6 +329,7 @@ gradient_boosting <- function(train, test, wide_test, fit_model){
   testRPS <- testRPS[order(testRPS$var),]
   print(testRPS)
   return(list(ourRPS, minRPS, maxRPS))
+  # }
 }
 
 

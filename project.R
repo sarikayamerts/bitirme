@@ -30,7 +30,7 @@ library(graphics)
 library(data.table)
 library(verification)
 library(glmnet)
-#library(TunePareto)
+library(TunePareto)
 library(anytime) 
 #library(plotly)
 library(stats)
@@ -156,7 +156,7 @@ A <- models(matches_df =  matches[season == '2017-2018'],
 A_ord <- models(matches_df =  matches[season == '2017-2018'], 
             details_df =  shin, 
             model_type =  "random_forest",
-            ordered = TRUE)
+            ordered = TRUE)   
 # A + B = shin_prob + insider
 AB <- models(matches_df = matches[week == 45][season == '2018-2019'], 
              details_df = shin_insider, 

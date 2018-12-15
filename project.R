@@ -30,7 +30,7 @@ library(graphics)
 library(data.table)
 library(verification)
 library(glmnet)
-#library(TunePareto)
+library(TunePareto)
 library(anytime) 
 #library(plotly)
 library(stats)
@@ -154,33 +154,33 @@ A <- models(matches_df =  matches[season == '2017-2018'],
             details_df =  shin, 
             model_type =  "glmnet")
 A_ord <- models(matches_df =  matches[season == '2017-2018'], 
-            details_df =  shin, 
-            model_type =  "random_forest",
-            ordered = TRUE)
+                details_df =  shin, 
+                model_type =  "random_forest",
+                ordered = TRUE)   
 # A + B = shin_prob + insider
 AB <- models(matches_df = matches[week == 45][season == '2018-2019'], 
              details_df = shin_insider, 
              model_type = "random_forest")
 AB_ord <- models(matches_df = matches[season == '2017-2018'], 
-             details_df = shin_insider, 
-             model_type = "random_forest",
-             ordered = TRUE)
+                 details_df = shin_insider, 
+                 model_type = "random_forest",
+                 ordered = TRUE)
 # A + C = shin_prob + average change rate
 AC <- models(matches_df = matches[week == 48][season == '2018-2019'], 
              details_df = shin_changes, 
              model_type = "random_forest")
 AC_ord <- models(matches_df = matches[week == 48][season == '2018-2019'], 
-             details_df = shin_changes, 
-             model_type = "random_forest",
-             ordered = TRUE)
+                 details_df = shin_changes, 
+                 model_type = "random_forest",
+                 ordered = TRUE)
 # A + B + C = shin_prob + insider + average change rate
 ABC <- models(matches_df = matches[week == 48][season == '2018-2019'], 
-             details_df = shin_changes_insider, 
-             model_type = "random_forest")
-ABC_ord <- models(matches_df = matches[week == 44][season == '2018-2019'], 
               details_df = shin_changes_insider, 
-              model_type = "random_forest",
-              ordered = TRUE)
+              model_type = "random_forest")
+ABC_ord <- models(matches_df = matches[week == 44][season == '2018-2019'], 
+                  details_df = shin_changes_insider, 
+                  model_type = "random_forest",
+                  ordered = TRUE)
 
 AB <- models(matches_df = matches[week == 44][season == '2018-2019'], 
              details_df = shin_insider, 

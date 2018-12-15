@@ -2,6 +2,20 @@
 # Cumulative Probability Model for Ordinal Data - vglmCumulative
 # Penalized Ordinal Regression - ordinalNet
 
+rpsCaret<- function (data, lev = NULL, model = NULL) { 
+  require(verification)
+  if (!all(levels(data[, "pred"]) == levels(data[, "obs"]))) 
+    stop("levels of observed and predicted data do not match")
+  rownames(data) <- NULL
+  obs <- as.vector(as.numeric(data$obs))
+  pred <- as.matrix(subset(data, select = levels(data$obs)))
+  rpsObject <- verification::rps(obs, pred)
+  out<- (-1) * rpsObject$rps 
+  names(out) <- c("rpsScore")
+  out 
+}
+environment(rpsCaret) <- asNamespace('caret')
+
 #unique(matches[season == '2018-2019']$week)
 # matches_df = matches[week == 44][season == '2018-2019']
 # details_df = lastrps[,-c("Shin_RPS")]
@@ -314,15 +328,15 @@ decision_tree <- function(train, test, wide_test, fit_model = NULL){
     fit <-  train(y = train$winner, 
                   x = train[,-c("winner")], 
                   method = "rpart", 
-                  tuneGrid = expand.grid(.cp = c((1)*0.005)),
+                  tuneGrid = expand.grid(.cp = c((1:15)*0.005)),
                   trControl = trainControl(method = "repeatedcv", 
-                                           number = 1, 
-                                           repeats = 1,
+                                           number = 10, 
+                                           repeats = 10,
                                            classProbs = T,
                                            summaryFunction = rpsCaret))
   }  
   if (!ordered){
-    fit <-  train(y = factor(convert(train$winner)), 
+    fit <-  train(y = train$winner, 
                   x = train[,-c("winner")], 
                   method = "rpart", 
                   tuneGrid = expand.grid(.cp = c((1:15)*0.005)),
@@ -342,34 +356,13 @@ decision_tree <- function(train, test, wide_test, fit_model = NULL){
 }
 
 
-rpsCaret<- function (data, lev = NULL, model = NULL) 
-{ 
-  require(verification)
-  if (!all(levels(data[, "pred"]) == levels(data[, "obs"]))) 
-    stop("levels of observed and predicted data do not match")
-  #rownames(data) <- NULL
-  #print(convert_factor(data$obs))
-  print("heyyooo")
-  print(data)
-  #rpsObject <- try(verification::rps(obs = convert_factor(data$obs), data[, lev[1:3]]),silent=TRUE)
-  #print(rpsObject)
-  rpsmeasH <- if (class(rpsObject)[1] == "try-error") {
-    NA
-  } else {rpsObject$metrics[[1]] 
-  }
-  out<-rpsmeasH 
-  names(out) <- c("RPS")
-  out 
-}
-environment(rpsCaret) <- asNamespace('caret')
-
-fit <-  train(y = convert_factor(train$winner), 
+fit <-  train(y = (train$winner), 
               x = train[,-c("winner")], 
               method = "rpart", 
-              tuneGrid = expand.grid(.cp = c((1:10)*0.01)),
+              tuneGrid = expand.grid(.cp = c((1:15)*0.01)),
               trControl = trainControl(method = "repeatedcv", 
-                                       number = 1, 
-                                       repeats = 1,
+                                       number = 10, 
+                                       repeats = 3,
                                        classProbs = T,
                                        summaryFunction = rpsCaret))
 
@@ -432,3 +425,5 @@ convert_1x2 <- function(arr){
 #convert(as.integer(output))
 #test_features$winner
 #table(convert_1x2(output), test_features$winner)
+calculate_rps(0.276, 0.713, 0.001, 3)
+0.009513953 + 0.237572678+ 0.478036409+ 0.219385103+0.223962831+0.273281869+ 0.310554713+ 0.430385600+ 0.332925821+ 0.239500386

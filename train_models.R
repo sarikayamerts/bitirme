@@ -1,6 +1,8 @@
 # Continuation Ratio Model for Ordinal Data - vglmContRatio
 # Cumulative Probability Model for Ordinal Data - vglmCumulative
 # Penalized Ordinal Regression - ordinalNet
+# glmnetcr - ordered glmnet
+
 
 rpsCaret<- function (data, lev = NULL, model = NULL) { 
   require(verification)
@@ -16,25 +18,21 @@ rpsCaret<- function (data, lev = NULL, model = NULL) {
 }
 environment(rpsCaret) <- asNamespace('caret')
 
-#unique(matches[season == '2018-2019']$week)
-# matches_df = matches[week == 44][season == '2018-2019']
-# details_df = lastrps[,-c("Shin_RPS")]
-models <- function(matches_df, details_df, fit_model = NULL,
-                   model_type = c("randomforest", "glmnet","gradient_boosting","decision_tree"),ordered = FALSE) ) {
+# unique(matches[season == '2018-2019']$week)
+# matches_df = matches[week == 48][season == '2018-2019']
+# details_df = shin
+models <- function(matches_df, details_df,
+                   model_type = c("randomforest", "glmnet","gradient_boosting","decision_tree"),
+                   ordered = FALSE) {
   
   test_match_ids <- matches_df$matchId
   test_data <- details_df[matchId %in% test_match_ids]
-  
-  #wide_test <- widening(test_data[,-c("norm_prob")], bookiesToKeep)
   wide_test <- widening_withwinner(test_data, bookiesToKeep)
   min_date <- min(matches[matchId %in% test_match_ids]$date)
-  #if (length(test_match_ids) < 12) {prev_date = 180}
-  prev_date = 365
+  prev_date <- 365
   lower_date <- as.Date(min_date) - prev_date
   train_match_ids <- matches[date < min_date][date > lower_date]$matchId
   train_data <- details_df[matchId %in% train_match_ids]
-  #train_data <- train_data[!(matchId %in% risky_matches)]
-  #wide_train <- widening(train_data[,-c("norm_prob")], bookiesToKeep)
   wide_train <- widening_withwinner(train_data, bookiesToKeep)
   wide_train <- wide_train[complete.cases(wide_train)]
   wide_test <- wide_test[complete.cases(wide_test)]
@@ -43,42 +41,48 @@ models <- function(matches_df, details_df, fit_model = NULL,
   test <- wide_test[,-c("matchId", "winner", "date", "week", "season")]
 
   if (ordered){train$winner <- ordered(train$winner, levels = c("odd1", "oddX", "odd2"))}
-    
+  
   if (model_type == "random_forest") {
-    fit <- random_forest(train, test, wide_test, fit_model, is_ordered = ordered)
+    if (ordered){
+      ### ordinal random forest needs to be implemented
+    }
+    if(!ordered){
+      fit <- random_forest(train, test, wide_test)
+    }
   }
   if (model_type == "glmnet") {
-    fit <- train_glmnet(train, test, wide_test, fit_model)
+    if (ordered) {
+      ### ordinal glmnet, glmnetcr
+    }
+    if (!ordered){
+      fit <- train_glmnet(train, test, wide_test)
+    }
   }
   if (model_type == "gradient_boosting") {
-    fit <- gradient_boosting(train, test, wide_test, fit_model)
+    fit <- gradient_boosting(train, test, wide_test)
   }
   if (model_type == "decision_tree") {
     fit <- decision_tree(train, test, wide_test)
   }
-  prev_model <- fit[1][[1]] #Bunlar nerde kullaniliyor
-  prev_rps <- fit[2][[1]]   ##Bunlar nerde kullaniliyor bu scriptte baska yerde yoklar
-  
+  ourRPS <- mean(fit[[2]]$RPS)
+  fit <- fit[[1]]
   week_number <- unique(matches_df$week)
-  if (length(week_number) > 1) {week_number = paste(length(week_number), "weeks")}
+  if (length(week_number) > 1) {week_number <- paste(length(week_number), "weeks")}
   season_number <- unique(matches_df$season)
   test_size <- nrow(matches_df)
-  ourRPS <- fit[1][[1]]
-  minRPS <- fit[2][[1]]
-  maxRPS <- fit[3][[1]]
   current_time <- format(Sys.time(), "%Y-%m-%d %X")
   if(any(grepl('avg', colnames(details_df)))){
-    if ("z" %in% colnames(details_df)){
-      feature <- "A+B+C"
-    }
-    if (!"z" %in% colnames(details_df)){
-      feature <- "A+C"
-    }
+    if ("z" %in% colnames(details_df)){feature <- "A+B+C"}
+    if (!"z" %in% colnames(details_df)){feature <- "A+C"}
   }
   if (!(any(grepl('avg', colnames(details_df)))) & ("z" %in% colnames(details_df))) {feature <- "A+B"}
   if (!(any(grepl('avg', colnames(details_df)))) & !("z" %in% colnames(details_df))) {feature <- "A"}  
+  str = ""
+  for (i in 1:ncol(fit$bestTune)) {
+    str <- paste(str, names(fit$bestTune[i]), fit$bestTune[i][1,])
+  }
   
-  df_summary <- read.csv("summary.csv")
+  df_summary <- read.csv("summary2.csv")
   
   df_new <- data.frame(ModelType = model_type,
                            Feature = feature,
@@ -86,106 +90,53 @@ models <- function(matches_df, details_df, fit_model = NULL,
                            Weeks = week_number,
                            Seasons = season_number,
                            TestSize = test_size,
+                           TrainStart = lower_date,
+                           TestStart = min_date,
                            OurRPS = ourRPS,
-                           MinRPS = minRPS,
-                           MaxRPS = maxRPS,
+                           BestTune = str,
                            timestamp = current_time)
   
   df_summary <- rbind(df_summary, df_new)
-  write.csv(df_summary, file = "summary.csv", row.names = FALSE, quote = FALSE)
-  
+  write.csv(df_summary, file = "summary2.csv", row.names = FALSE, quote = FALSE)
+  return(fit)
 }
 
 
 #train and test are necessary, requires defined lastrps (maybe use only last?)
 #returns output_prob, testRPS
-random_forest <- function(train, test, wide_test, fit_model = NULL,
-                          control_method = "repeatedcv", control_number = 10, repeat_number = 10, 
-                          is_ordered = FALSE){
-  
-  if (!is.null(fit_model)){
-    output_prob <- predict(fit_model, test, "prob")
-    colnames(output_prob) <- c("odd1", "oddX", "odd2")
-    output_prob$winner <- wide_test$winner
-    output_prob$matchId <- wide_test$matchId
-    setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2", "winner"))
-    output_prob <- as.data.table(output_prob)[, RPS := calculate_rps(odd1, oddX, odd2, winner), by = 1:nrow(output_prob)]
-  } #burda bi if() in icinde train olmasi senaryosu gerekmiyor mu, hafta hafta kayarken yeni haftayi train setine ekleyip tekrar train etmeliyiz bence?
-  
-  if (is.null(fit_model)){
-    control <- trainControl(method = control_method, number = control_number, repeats = repeat_number, search = "grid")
-    #metric can be Accuracy, ROC, RMSE, logLoss
-    set.seed(1234)
-    mtry <- sqrt(ncol(train))
-    tunegrid <- expand.grid(.mtry=mtry)
+random_forest <- function(train, test, wide_test){
+  set.seed(1234)
+  control <- trainControl(method = "repeatedcv", 
+                            number = 10, 
+                            repeats = 3, 
+                            search = "grid",
+                            classProbs = TRUE,
+                            summaryFunction = rpsCaret)
+  tunegrid <- expand.grid(.mtry= 1 + (0:14) * 0.5)
     
-    if(is_ordered){
-      rf_default <- train(winner~., 
-                          data=train, 
-                          method="rf", 
-                          metric="Accuracy", 
-                          tuneGrid=tunegrid, 
-                          trControl=control, 
-                          importance = T)
-      
-    }else{
-      rf_default <- train(factor(convert(winner))~., 
-                          data=train, 
-                          method="rf", 
-                          metric="Accuracy", 
-                          tuneGrid=tunegrid, 
-                          trControl=control, 
-                          importance = T)
-    }
-    
-   
-    
-    varImp(rf_default)
-    output_prob <- predict(rf_default, test, "prob")
-    colnames(output_prob) <- c("odd1", "oddX", "odd2")
-    output_prob$winner <- wide_test$winner
-    output_prob$matchId <- wide_test$matchId
-    setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2", "winner"))
-    output_prob <- as.data.table(output_prob)[, RPS := calculate_rps(odd1, oddX, odd2, winner), by = 1:nrow(output_prob)]
-    print(output_prob)
-    
-    testRPS <- lastrps[matchId %in% wide_test$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
-    testRPS <- testRPS[order(testRPS$var),]
-    minRPS <- round(min(testRPS$var),7)
-    maxRPS <- round(max(testRPS$var),7)
-    
-    ourRPS <- mean(output_prob$RPS)
-    x <- data.frame("***IE 492***", ourRPS)
-    names(x) <- names(testRPS)
-    testRPS <- rbind(testRPS, x)
-    testRPS <- testRPS[order(testRPS$var),]
-    print(testRPS)
-    return(list(ourRPS, minRPS, maxRPS))
-  }
+  fit <- train(winner~., 
+                data=train, 
+                method="rf", 
+                tuneGrid=tunegrid, 
+                trControl=control,
+                ntree = 2000,
+                importance = T)
+
+  output_prob <- predict(fit, test, "prob")
+  colnames(output_prob) <- c("odd1", "oddX", "odd2")
+  output_prob$matchId <- wide_test$matchId
+  setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
+  output_prob <- comparison(output_prob, rank = FALSE)
+  return(list(fit, output_prob))
 }
 
-
-#trace prints out that sentence
-#max includes column for maximum oddtype
-train_glmnet <- function(train, test, wide_test, fit_model = NULL,
+train_glmnet <- function(train, test, wide_test,
                          alpha=1,nlambda=50, tune_lambda=T,nofReplications=2,
                          nFolds=10,trace=F, max = F){
-  # if (!is.null(fit_model)){
-  #   output_prob <- predict(fit_model, test, "prob")
-  #   colnames(output_prob) <- c("odd1", "oddX", "odd2")
-  #   output_prob$matchId <- wide_test$matchId
-  #   setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
-  #   output_prob <- comparison(output_prob, rank = T)
-  #   ourRPS <- mean(output_prob$RPS)
-  #   return(list(fit, ourRPS))
-  # }
-  
-  # if (is.null(fit_model)){
   set.seed(1234)
   train$winner <- convert(train$winner)
   train_class <- as.numeric(train$winner)
   train <- train[,-c("winner")]
-  #adds new column for maximum observation (adds odd1 oddX or odd2)
   if (max) {
     glm_train_data$max <- do.call(pmax, glm_train_data)
     glm_test_data$max <- do.call(pmax, glm_test_data)    
@@ -259,209 +210,94 @@ train_glmnet <- function(train, test, wide_test, fit_model = NULL,
                             meanRPS_1se=overall_results_summary[lambda==cv_lambda.1se]$meanRPS)
   }
   
-  
   final_glmnet_fit <- glmnet(as.matrix(train),as.factor(train_class),family="multinomial", alpha = alpha,lambda=cvResultsSummary$lambda.min)
   predicted_probabilities <- predict(final_glmnet_fit, as.matrix(test), type = "response")
   output_prob <- data.table(predicted_probabilities[,,])
-  
   colnames(output_prob) <- c("odd1", "oddX", "odd2")
-  output_prob$winner <- wide_test$winner
   output_prob$matchId <- wide_test$matchId
-  setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2", "winner"))
-  output_prob <- as.data.table(output_prob)[, RPS := calculate_rps(odd1, oddX, odd2, winner), by = 1:nrow(output_prob)]
-  print(output_prob)
-  
-  testRPS <- lastrps[matchId %in% wide_test$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
-  testRPS <- testRPS[order(testRPS$var),]
-  minRPS <- round(min(testRPS$var),7)
-  maxRPS <- round(max(testRPS$var),7)
-  
-  ourRPS <- mean(output_prob$RPS)
-  x <- data.frame("***IE 492***", ourRPS)
-  names(x) <- names(testRPS)
-  testRPS <- rbind(testRPS, x)
-  testRPS <- testRPS[order(testRPS$var),]
-  print(testRPS)
-  return(list(ourRPS, minRPS, maxRPS))
-  # }
+  setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
+  output_prob <- comparison(output_prob, rank = FALSE)
+  return(list(fit, output_prob))
 }
 
 
-gradient_boosting <- function(train, test, wide_test, fit_model){
-  
-  # if (!is.null(fit_model)){
-  #   output_prob <- predict(fit_model, test, "prob")
-  #   colnames(output_prob) <- c("odd1", "oddX", "odd2")
-  #   output_prob$matchId <- wide_test$matchId
-  #   setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
-  #   output_prob <- comparison(output_prob, rank = T)
-  #   ourRPS <- mean(output_prob$RPS)
-  #   return(list(fit, ourRPS))
-  # }
-  
-  # if (is.null(fit_model)){
-  fitControl <- trainControl(method = "cv", number = 10)
-  tune_Grid <-  expand.grid(interaction.depth = c(1,3,5),
-                            n.trees = (1:5)*200,
+gradient_boosting <- function(train, test, wide_test){
+  fitControl <- trainControl(method = "repeatedcv", 
+                             number = 10, 
+                             repeats = 3,
+                             classProbs = T,
+                             summaryFunction = rpsCaret)
+  tune_Grid <-  expand.grid(interaction.depth = c(3,5),
+                            n.trees = (1:2)*200,
                             shrinkage = c(0.1),
                             n.minobsinnode = c(5,10))
-  nrow(tune_Grid)
   #plot(tune_Grid) #Error in plot.new() : figure margins too large 
   #plot(gbmFit, plotType = "level")
   set.seed(1234)
-  fit <- train(winner ~ ., data = train,
+  fit <- train(winner ~ ., 
+               data = train,
                method = "gbm",
                trControl = fitControl,
                verbose = FALSE,
                tuneGrid = tune_Grid)
 
-  output_prob <- predict(fit,test,type= "prob")
+  output_prob <- predict(fit, test, "prob")
   colnames(output_prob) <- c("odd1", "oddX", "odd2")
-  output_prob$winner <- wide_test$winner
   output_prob$matchId <- wide_test$matchId
-  setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2", "winner"))
-  output_prob <- as.data.table(output_prob)[, RPS := calculate_rps(odd1, oddX, odd2, winner), by = 1:nrow(output_prob)]
-  print(output_prob)
-  ourRPS <- mean(output_prob$RPS)
-  
-  df_summary <- read.csv("tuning.csv")
-  
-  df_new <- data.frame(cbind(fit$bestTune, fitControl$method, ourRPS))
-  
-  df_summary <- rbind(df_summary, df_new)
-  write.csv(df_summary, file = "tuning.csv", row.names = FALSE, quote = FALSE)
-  
-  
-  testRPS <- lastrps[matchId %in% wide_test$matchId][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
-  testRPS <- testRPS[order(testRPS$var),]
-  minRPS <- round(min(testRPS$var),7)
-  maxRPS <- round(max(testRPS$var),7)
-  
-  ourRPS <- mean(output_prob$RPS)
-  x <- data.frame("***IE 492***", ourRPS)
-  names(x) <- names(testRPS)
-  testRPS <- rbind(testRPS, x)
-  testRPS <- testRPS[order(testRPS$var),]
-  print(testRPS)
-  return(list(ourRPS, minRPS, maxRPS))
-  # }
+  setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
+  output_prob <- comparison(output_prob, rank = FALSE)
+  return(list(fit, output_prob))
 }
 
 
-decision_tree <- function(train, test, wide_test, fit_model = NULL){
+decision_tree <- function(train, test, wide_test){
   set.seed(1234)
-  
-  # if (!is.null(fit_model)){
-  #   output_prob <- predict(fit_model, test, "prob")
-  #   colnames(output_prob) <- c("odd1", "oddX", "odd2")
-  #   output_prob$matchId <- wide_test$matchId
-  #   setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
-  #   output_prob <- comparison(output_prob, rank = T)
-  #   ourRPS <- mean(output_prob$RPS)
-  #   return(list(fit, ourRPS))
-  # }
-  
-  # if (is.null(fit_model)){
-  if (ordered){
-    fit <-  train(y = train$winner, 
-                  x = train[,-c("winner")], 
-                  method = "rpart", 
-                  tuneGrid = expand.grid(.cp = c((1:15)*0.005)),
-                  trControl = trainControl(method = "repeatedcv", 
-                                           number = 10, 
-                                           repeats = 10,
-                                           classProbs = T,
-                                           summaryFunction = rpsCaret))
-  }  
-  if (!ordered){
-    fit <-  train(y = train$winner, 
-                  x = train[,-c("winner")], 
-                  method = "rpart", 
-                  tuneGrid = expand.grid(.cp = c((1:15)*0.005)),
-                  trControl = trainControl(method = "repeatedcv", number = 10, repeats = 10))
-  }
+  fit <-  train(y = train$winner, 
+                x = train[,-c("winner")], 
+                method = "rpart", 
+                tuneGrid = expand.grid(.cp = c((1:15)*0.005)),
+                trControl = trainControl(method = "repeatedcv", 
+                                         number = 10, 
+                                         repeats = 10,
+                                         classProbs = T,
+                                         summaryFunction = rpsCaret))
    
-    output_prob <- data.frame(predict(fit,test,type= "prob"))
-    colnames(output_prob) <- c("odd1", "oddX", "odd2")
-    output_prob$matchId <- wide_test$matchId
-    setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
-    output_prob <- comparison(output_prob, T)
-    ourRPS <- mean(output_prob$RPS)
-    
-    
-    return(list(fit, ourRPS))
-  # }
-}
-
-
-fit <-  train(y = (train$winner), 
-              x = train[,-c("winner")], 
-              method = "rpart", 
-              tuneGrid = expand.grid(.cp = c((1:15)*0.01)),
-              trControl = trainControl(method = "repeatedcv", 
-                                       number = 10, 
-                                       repeats = 3,
-                                       classProbs = T,
-                                       summaryFunction = rpsCaret))
-
-
-
-tc <- trainControl(method="cv",classProb=TRUE,summaryFunction=roc)
-
-if (d == "odd1") {d=1}
-if (d == "oddX") {d=2}
-if (d == "odd2") {d=3}
-pred = t(matrix(c(a, b, c)))
-output <- rps(obs = c(d), pred = pred)
-output$rps
-
-bet_on <- function(){
-  best_bookmaker <- testRPS$bookmaker[1]
-  portfolio_df <- last[bookmaker == best_bookmaker][matchId %in% predictions[["predictions"]]$matchId][,-4]
-  bookmaker_pred <- widening(portfolio_df, best_bookmaker)[,c(1,5,2,4,3)]
-  our_pred <- predictions[["predictions"]]
-  colnames(bookmaker_pred) <- colnames(our_pred)
-  differences <- merge(our_pred, bookmaker_pred, on = c("matchId"))
-  differences$odd1_diff <- differences[, odd1.x-odd1.y, by = 1:nrow(differences)]$V1
-  differences$oddX_diff <- differences[, oddX.x-oddX.y, by = 1:nrow(differences)]$V1
-  differences$odd2_diff <- differences[, odd2.x-odd2.y, by = 1:nrow(differences)]$V1
-  we_bet_on <- convert(max.col(differences[,c(10:12)], 'first'))
-  actual_outcome <- differences$winner.x
-  results <- as.data.table(cbind(differences$matchId, we_bet_on, actual_outcome, matrix(1, 10, 3)))
-  colnames(results) <- c("matchId", "we_bet_on", "actual_outcome", "odd", "bet_amount", "on_hand")
-  
-  for (i in 1:nrow(results)){
-    results$odd[i] <- last(details[(matchId == results$matchId[i]) & (bookmaker == "12BET") & (oddtype == results$we_bet_on[i])])$odd
-    if(results$we_bet_on[i] == results$actual_outcome[i]){
-      results$on_hand[i] <- as.integer(results$bet_amount[i]) * as.double(results$odd[i])
-    }
-    else{
-      results$on_hand[i] <- 0
-    }
-  }
-  print(results)
+  output_prob <- predict(fit, test, "prob")
+  colnames(output_prob) <- c("odd1", "oddX", "odd2")
+  output_prob$matchId <- wide_test$matchId
+  setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
+  output_prob <- comparison(output_prob, rank = FALSE)
+  return(list(fit, output_prob))
 }
 
 
 
-#convert regression to classification
-convert_1x2 <- function(arr){
-  n = length(arr)
-  arr_copy <- copy(arr)
-  for (i in 1:n){
-    if (arr_copy[i] < 1.80) {arr_copy[i] <- "odd1"}
-    else if ((arr_copy[i] >= 1.80) & (arr_copy[i] <= 2.20)) {arr_copy[i] <- "oddX"}
-    else {arr_copy[i] <- "odd2"}
-  }
-  as.vector(arr_copy)
-}
 
 
-### Bunlar fonksiyon disindaydi comment outladim simdilik
-#output <- predict(rf_default, test_x)
-#convert_1x2(output)
-#convert(as.integer(output))
-#test_features$winner
-#table(convert_1x2(output), test_features$winner)
-calculate_rps(0.276, 0.713, 0.001, 3)
-0.009513953 + 0.237572678+ 0.478036409+ 0.219385103+0.223962831+0.273281869+ 0.310554713+ 0.430385600+ 0.332925821+ 0.239500386
+# bet_on <- function(){
+#   best_bookmaker <- testRPS$bookmaker[1]
+#   portfolio_df <- last[bookmaker == best_bookmaker][matchId %in% predictions[["predictions"]]$matchId][,-4]
+#   bookmaker_pred <- widening(portfolio_df, best_bookmaker)[,c(1,5,2,4,3)]
+#   our_pred <- predictions[["predictions"]]
+#   colnames(bookmaker_pred) <- colnames(our_pred)
+#   differences <- merge(our_pred, bookmaker_pred, on = c("matchId"))
+#   differences$odd1_diff <- differences[, odd1.x-odd1.y, by = 1:nrow(differences)]$V1
+#   differences$oddX_diff <- differences[, oddX.x-oddX.y, by = 1:nrow(differences)]$V1
+#   differences$odd2_diff <- differences[, odd2.x-odd2.y, by = 1:nrow(differences)]$V1
+#   we_bet_on <- convert(max.col(differences[,c(10:12)], 'first'))
+#   actual_outcome <- differences$winner.x
+#   results <- as.data.table(cbind(differences$matchId, we_bet_on, actual_outcome, matrix(1, 10, 3)))
+#   colnames(results) <- c("matchId", "we_bet_on", "actual_outcome", "odd", "bet_amount", "on_hand")
+#   
+#   for (i in 1:nrow(results)){
+#     results$odd[i] <- last(details[(matchId == results$matchId[i]) & (bookmaker == "12BET") & (oddtype == results$we_bet_on[i])])$odd
+#     if(results$we_bet_on[i] == results$actual_outcome[i]){
+#       results$on_hand[i] <- as.integer(results$bet_amount[i]) * as.double(results$odd[i])
+#     }
+#     else{
+#       results$on_hand[i] <- 0
+#     }
+#   }
+#   print(results)
+# }
+# 

@@ -1,0 +1,2 @@
+ModelType,Feature,Ordered,Weeks,Seasons,TestSize,TrainStart,TestStart,OurRPS,BestTune,timestamp
+decision_tree,A,TRUE,48,2018-2019,10,2017-11-30,2018-11-30,0.160573395450363, cp 0.04,2018-12-16 03:27:54

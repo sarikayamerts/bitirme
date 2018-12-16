@@ -19,28 +19,37 @@ rpsCaret<- function (data, lev = NULL, model = NULL) {
 environment(rpsCaret) <- asNamespace('caret')
 
 # unique(matches[season == '2018-2019']$week)
-# matches_df = matches[week == 48][season == '2018-2019']
+# matches_df = next_matches[date == '2018-12-16']
+# matches_df = matches[week == 43][season == '2018-2019']
 # details_df = shin
 models <- function(matches_df, details_df,
                    model_type = c("randomforest", "glmnet","gradient_boosting","decision_tree"),
-                   ordered = FALSE) {
+                   is_ordered = FALSE) {
   
   test_match_ids <- matches_df$matchId
   test_data <- details_df[matchId %in% test_match_ids]
-  wide_test <- widening_withwinner(test_data, bookiesToKeep)
-  min_date <- min(matches[matchId %in% test_match_ids]$date)
+  if (all(is.na(test_data$winner))){
+    wide_test <- subsetBookies(bookiesToKeep, last[matchId %in% test_match_ids])
+    wide_test <- reshape(wide_test, idvar = c("matchId", "bookmaker"), timevar = c("oddtype"), direction = "wide")
+    wide_test <- reshape(wide_test, idvar = c("matchId"), timevar = c("bookmaker"), direction = "wide")
+    wide_test$winner <- NA
+  }
+  if (!all(is.na(test_data$winner))){
+    wide_test <- widening_withwinner(test_data, bookiesToKeep)
+    wide_test <- wide_test[complete.cases(wide_test)]
+  }
+  min_date <- min(matches_df[matchId %in% test_match_ids]$date)
   prev_date <- 365
   lower_date <- as.Date(min_date) - prev_date
   train_match_ids <- matches[date < min_date][date > lower_date]$matchId
   train_data <- details_df[matchId %in% train_match_ids]
   wide_train <- widening_withwinner(train_data, bookiesToKeep)
   wide_train <- wide_train[complete.cases(wide_train)]
-  wide_test <- wide_test[complete.cases(wide_test)]
 
   train <- wide_train[,-c("matchId", "date", "week", "season")]
   test <- wide_test[,-c("matchId", "winner", "date", "week", "season")]
 
-  if (ordered){train$winner <- ordered(train$winner, levels = c("odd1", "oddX", "odd2"))}
+  if (is_ordered){train$winner <- ordered(train$winner, levels = c("odd1", "oddX", "odd2"))}
   
   if (model_type == "random_forest") {
     if (ordered){
@@ -65,6 +74,7 @@ models <- function(matches_df, details_df,
     fit <- decision_tree(train, test, wide_test)
   }
   ourRPS <- mean(fit[[2]]$RPS)
+  preds <- fit[[2]]
   fit <- fit[[1]]
   week_number <- unique(matches_df$week)
   if (length(week_number) > 1) {week_number <- paste(length(week_number), "weeks")}
@@ -86,7 +96,7 @@ models <- function(matches_df, details_df,
   
   df_new <- data.frame(ModelType = model_type,
                            Feature = feature,
-                           Ordered = ordered,
+                           Ordered = is_ordered,
                            Weeks = week_number,
                            Seasons = season_number,
                            TestSize = test_size,
@@ -98,7 +108,7 @@ models <- function(matches_df, details_df,
   
   df_summary <- rbind(df_summary, df_new)
   write.csv(df_summary, file = "summary2.csv", row.names = FALSE, quote = FALSE)
-  return(fit)
+  return(list(fit, ourRPS, preds))
 }
 
 
@@ -227,8 +237,8 @@ gradient_boosting <- function(train, test, wide_test){
                              repeats = 3,
                              classProbs = T,
                              summaryFunction = rpsCaret)
-  tune_Grid <-  expand.grid(interaction.depth = c(3,5),
-                            n.trees = (1:2)*200,
+  tune_Grid <-  expand.grid(interaction.depth = c(3,4,5),
+                            n.trees = (1:5)*200,
                             shrinkage = c(0.1),
                             n.minobsinnode = c(5,10))
   #plot(tune_Grid) #Error in plot.new() : figure margins too large 
@@ -255,7 +265,7 @@ decision_tree <- function(train, test, wide_test){
   fit <-  train(y = train$winner, 
                 x = train[,-c("winner")], 
                 method = "rpart", 
-                tuneGrid = expand.grid(.cp = c((1:15)*0.005)),
+                tuneGrid = expand.grid(.cp = c((1:14)*0.005)),
                 trControl = trainControl(method = "repeatedcv", 
                                          number = 10, 
                                          repeats = 10,
@@ -263,10 +273,10 @@ decision_tree <- function(train, test, wide_test){
                                          summaryFunction = rpsCaret))
    
   output_prob <- predict(fit, test, "prob")
-  colnames(output_prob) <- c("odd1", "oddX", "odd2")
+  #colnames(output_prob) <- c("odd1", "oddX", "odd2")
   output_prob$matchId <- wide_test$matchId
   setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
-  output_prob <- comparison(output_prob, rank = FALSE)
+  output_prob <- comparison(output_prob, trace = FALSE)
   return(list(fit, output_prob))
 }
 

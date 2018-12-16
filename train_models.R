@@ -237,9 +237,9 @@ gradient_boosting <- function(train, test, wide_test){
                              repeats = 3,
                              classProbs = T,
                              summaryFunction = rpsCaret)
-  tune_Grid <-  expand.grid(interaction.depth = c(3,4,5),
-                            n.trees = (1:5)*200,
-                            shrinkage = c(0.1),
+  tune_Grid <-  expand.grid(interaction.depth = c(1,3,5),
+                            n.trees = (1:10)*50,
+                            shrinkage = c(0.01, 0.05, 0.1, 0.15),
                             n.minobsinnode = c(5,10))
   #plot(tune_Grid) #Error in plot.new() : figure margins too large 
   #plot(gbmFit, plotType = "level")
@@ -252,10 +252,10 @@ gradient_boosting <- function(train, test, wide_test){
                tuneGrid = tune_Grid)
 
   output_prob <- predict(fit, test, "prob")
-  colnames(output_prob) <- c("odd1", "oddX", "odd2")
+  #colnames(output_prob) <- c("odd1", "oddX", "odd2")
   output_prob$matchId <- wide_test$matchId
   setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
-  output_prob <- comparison(output_prob, rank = FALSE)
+  output_prob <- comparison(output_prob, trace = TRUE)
   return(list(fit, output_prob))
 }
 

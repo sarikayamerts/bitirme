@@ -52,18 +52,18 @@ models <- function(matches_df, details_df,
   if (is_ordered){train$winner <- ordered(train$winner, levels = c("odd1", "oddX", "odd2"))}
   
   if (model_type == "random_forest") {
-    if (ordered){
+    if (is_ordered){
       ### ordinal random forest needs to be implemented
     }
-    if(!ordered){
+    if(!is_ordered){
       fit <- random_forest(train, test, wide_test)
     }
   }
   if (model_type == "glmnet") {
-    if (ordered) {
+    if (is_ordered) {
       ### ordinal glmnet, glmnetcr
     }
-    if (!ordered){
+    if (!is_ordered){
       fit <- train_glmnet(train, test, wide_test)
     }
   }
@@ -220,13 +220,13 @@ train_glmnet <- function(train, test, wide_test,
                             meanRPS_1se=overall_results_summary[lambda==cv_lambda.1se]$meanRPS)
   }
   
-  final_glmnet_fit <- glmnet(as.matrix(train),as.factor(train_class),family="multinomial", alpha = alpha,lambda=cvResultsSummary$lambda.min)
-  predicted_probabilities <- predict(final_glmnet_fit, as.matrix(test), type = "response")
+  fit <- glmnet(as.matrix(train),as.factor(train_class),family="multinomial", alpha = alpha,lambda=cvResultsSummary$lambda.min)
+  predicted_probabilities <- predict(fit, as.matrix(test), type = "response")
   output_prob <- data.table(predicted_probabilities[,,])
   colnames(output_prob) <- c("odd1", "oddX", "odd2")
   output_prob$matchId <- wide_test$matchId
   setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
-  output_prob <- comparison(output_prob, rank = FALSE)
+  output_prob <- comparison(output_prob, trace = FALSE)
   return(list(fit, output_prob))
 }
 

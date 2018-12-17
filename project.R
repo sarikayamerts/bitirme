@@ -151,12 +151,12 @@ source("train_models.R")
 
 for (k in list(shin, shin_changes, shin_changes_insider)){
   for (n in noquote(unique(matches[season == "2018-2019"]$week))){
-    for (i in c("decision_tree", "gradient_boosting")){
+    for (i in c("decision_tree")){
       AB <- models(matches_df = matches[week == n][season == '2018-2019'],
                    details_df = k,
                    model_type = i, is_ordered = TRUE)
     }
-    for (i in c("decision_tree", "gradient_boosting", "glmnet")){
+    for (i in c("decision_tree")){
       AB <- models(matches_df = matches[week == n][season == '2018-2019'],
                    details_df = k,
                    model_type = i, is_ordered = FALSE)

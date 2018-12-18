@@ -152,16 +152,28 @@ source("train_models.R")
 
 for (k in list(shin, shin_insider, shin_changes_insider)){
     for (i in c("random_forest", "decision_tree", "gradient_boosting", "glmnet")){
-      model_new <- models(matches_df = matches[season == '2018-2019'],
+      model_new <- models(matches_df = matches[week <= 42][season == '2018-2019'],
                    details_df = k,
                    model_type = i, is_ordered = FALSE)
     }
-    for (i in c("random_forest", "gradient_boosting", "vglm", "decision_tree")){
-      model_new <- models(matches_df = matches[season == '2018-2019'],
+    # for (i in c("random_forest", "gradient_boosting", "vglm")){
+    #   model_new <- models(matches_df = matches[week <= 42][season == '2018-2019'],
+    #                       details_df = k,
+    #                       model_type = i, is_ordered = TRUE)
+    # }
+    for (i in c("random_forest", "decision_tree", "gradient_boosting", "glmnet")){
+      model_new <- models(matches_df = matches[week > 42][season == '2018-2019'],
                           details_df = k,
-                          model_type = i, is_ordered = TRUE)
+                          model_type = i, is_ordered = FALSE)
     }
+    # for (i in c("random_forest", "gradient_boosting", "vglm")){
+    #   model_new <- models(matches_df = matches[week > 42][season == '2018-2019'],
+    #                       details_df = k,
+    #                       model_type = i, is_ordered = TRUE)
+    # }
+
   
+  #2017-2018
     # for (i in c("random_forest", "decision_tree", "gradient_boosting", "glmnet")){
     #   model_new <- models(matches_df = matches[season == '2017-2018'],
     #                details_df = k,

@@ -120,3 +120,6 @@ random_forest,A,FALSE,13 weeks,2018-2019,137,NA,NA,0.233241547445255, mtry 7.5,2
 decision_tree,A,FALSE,13 weeks,2018-2019,137,NA,NA,0.202258255845621, cp 0.15,2018-12-18 22:31:21
 gradient_boosting,A,FALSE,13 weeks,2018-2019,137,NA,NA,0.175722942326172, n.trees 250 interaction.depth 1 shrinkage 0.01 n.minobsinnode 5,2018-12-18 22:38:22
 glmnet,A,FALSE,13 weeks,2018-2019,137,NA,NA,0.169080306349687, lambda 0.00487127317590933,2018-12-18 22:39:05
+random_forest,A,FALSE,6 weeks,2018-2019,60,NA,NA,0.2259445, mtry 4.5,2018-12-19 00:00:37
+decision_tree,A,FALSE,6 weeks,2018-2019,60,NA,NA,0.170442411977645, cp 0.06,2018-12-19 00:00:47
+gradient_boosting,A,FALSE,6 weeks,2018-2019,60,NA,NA,0.170157668838395, n.trees 250 interaction.depth 1 shrinkage 0.01 n.minobsinnode 5,2018-12-19 00:11:29

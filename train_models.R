@@ -19,7 +19,7 @@ environment(rpsCaret) <- asNamespace('caret')
 
 # unique(matches[season == '2018-2019']$week)
 # matches_df = next_matches[date == '2018-12-16']
-# matches_df = matches[season == '2018-2019']
+# matches_df = matches[season == '2018-2019'][week == 48]
 # details_df = shin
 models <- function(matches_df, details_df,
                    model_type = c("random_forest", "glmnet","gradient_boosting","decision_tree"),
@@ -51,6 +51,8 @@ models <- function(matches_df, details_df,
   test <- wide_test[,-c("matchId", "winner", "date", "week", "season")]
 
   if (is_ordered){train$winner <- ordered(train$winner, levels = c("odd1", "oddX", "odd2"))}
+  print(paste(model_type, ", is_ordered", is_ordered))
+  
   
   if (model_type == "random_forest") {
     if (is_ordered){
@@ -85,6 +87,8 @@ models <- function(matches_df, details_df,
   ourRPS <- mean(fit[[2]]$RPS)
   preds <- fit[[2]]
   fit <- fit[[1]]
+  print(preds[oddX > 0.3])
+  
   week_number <- unique(matches_df$week)
   if (length(week_number) > 1) {week_number <- paste(length(week_number), "weeks")}
   season_number <- unique(matches_df$season)
@@ -109,8 +113,8 @@ models <- function(matches_df, details_df,
                            Weeks = week_number,
                            Seasons = season_number,
                            TestSize = test_size,
-                           TrainStart = lower_date,
-                           TestStart = min_date,
+                           TrainStart = toString(lower_date),
+                           TestStart = toString(min_date),
                            OurRPS = ourRPS,
                            BestTune = str,
                            timestamp = current_time)

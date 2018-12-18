@@ -40,6 +40,7 @@ library(e1071)
 library(rpart)
 library(gbm)
 library(plyr)
+library(ordinalForest)
 
 ##### FUNCTIONS TO BE USED
 
@@ -149,14 +150,9 @@ shin_changes_insider <- merge(shin_changes, insider, by = c("matchId", "bookmake
 
 source("train_models.R")
 
-for (k in list(shin, shin_changes, shin_changes_insider)){
+for (k in list(shin, shin_insider, shin_changes_insider)){
   for (n in noquote(unique(matches[season == "2018-2019"]$week))){
-    for (i in c("decision_tree")){
-      AB <- models(matches_df = matches[week == n][season == '2018-2019'],
-                   details_df = k,
-                   model_type = i, is_ordered = TRUE)
-    }
-    for (i in c("decision_tree")){
+    for (i in c("random_forest", "decision_tree", "gradient_boosting", "glmnet")){
       AB <- models(matches_df = matches[week == n][season == '2018-2019'],
                    details_df = k,
                    model_type = i, is_ordered = FALSE)

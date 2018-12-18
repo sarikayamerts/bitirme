@@ -20,10 +20,10 @@ environment(rpsCaret) <- asNamespace('caret')
 
 # unique(matches[season == '2018-2019']$week)
 # matches_df = next_matches[date == '2018-12-16']
-# matches_df = matches[week == 43][season == '2018-2019']
+# matches_df = matches[week == 42][season == '2018-2019']
 # details_df = shin
 models <- function(matches_df, details_df,
-                   model_type = c("randomforest", "glmnet","gradient_boosting","decision_tree"),
+                   model_type = c("random_forest", "glmnet","gradient_boosting","decision_tree"),
                    is_ordered = FALSE) {
   
   test_match_ids <- matches_df$matchId
@@ -53,7 +53,7 @@ models <- function(matches_df, details_df,
   
   if (model_type == "random_forest") {
     if (is_ordered){
-      ### ordinal random forest needs to be implemented
+      fit <- ord_rf(train, test, wide_test)    
     }
     if(!is_ordered){
       fit <- random_forest(train, test, wide_test)
@@ -122,21 +122,38 @@ random_forest <- function(train, test, wide_test){
                             search = "grid",
                             classProbs = TRUE,
                             summaryFunction = rpsCaret)
-  tunegrid <- expand.grid(.mtry= 1 + (0:14) * 0.5)
+  tunegrid <- expand.grid(.mtry= 4+(0:8)*0.5)
     
   fit <- train(winner~., 
                 data=train, 
                 method="rf", 
                 tuneGrid=tunegrid, 
                 trControl=control,
-                ntree = 2000,
                 importance = T)
 
   output_prob <- predict(fit, test, "prob")
   colnames(output_prob) <- c("odd1", "oddX", "odd2")
   output_prob$matchId <- wide_test$matchId
   setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
-  output_prob <- comparison(output_prob, rank = FALSE)
+  output_prob <- comparison(output_prob, trace = T)
+  return(list(fit, output_prob))
+}
+
+ord_rf <- function(train, test, wide_test){
+  set.seed(1234)
+  # There are several hyperparameters, which do, however,
+  # not have to be optimized by the user in general, because the default
+  # values used for these hyperparameters were seen to be in a reasonable 
+  # range and the results seem to be quite robust with respect to the 
+  # choices of the hyperparameter values.
+  ordforres <- ordfor(depvar="winner", 
+                      data=train, nsets=1000, ntreeperdiv=400,
+                      ntreefinal=5000, perffunction = "equal")
+  preds <- predict(ordforres, newdata=test, "prob")
+  output_prob <- data.table(preds$classfreqtree)
+  output_prob$matchId <- wide_test$matchId
+  setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
+  output_prob <- comparison(output_prob, trace = T)
   return(list(fit, output_prob))
 }
 
@@ -226,9 +243,96 @@ train_glmnet <- function(train, test, wide_test,
   colnames(output_prob) <- c("odd1", "oddX", "odd2")
   output_prob$matchId <- wide_test$matchId
   setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
-  output_prob <- comparison(output_prob, trace = FALSE)
+  output_prob <- comparison(output_prob, trace = T)
+  fit$bestTune <- data.frame(lambda = fit$lambda)
   return(list(fit, output_prob))
 }
+
+train_glmnetcr <- function(train, test, wide_test,
+                         alpha=1,nlambda=50,nofReplications=2,
+                         nFolds=10){
+  set.seed(1234)
+  train_class <- train$winner
+  train <- train[,-c("winner")]
+
+  # to set lambda parameter, cross-validation will be performed and lambda is selected based on RPS performance
+  cvindices <- generateCVRuns(train_class,nofReplications,nFolds,stratified=TRUE)
+  
+  # first get lambda sequence for all data
+  glmnet_alldata <- glmnetcr(as.matrix(train), as.factor(train_class), alpha = alpha, nlambda=nlambda)
+  lambda_sequence <- glmnet_alldata$lambda
+  
+  cvresult=vector('list',nofReplications*nFolds)
+  iter=1
+  for(i in 1:nofReplications) {
+    thisReplication=cvindices[[i]]
+    for(j in 1:nFolds){
+      testindices <- order(thisReplication[[j]])
+      
+      cvtrain <- train[-testindices]  
+      cvtrainclass <- train_class[-testindices]   
+      cvtest <- train[testindices]
+      cvtestclass <- train_class[testindices] 
+      
+      inner_cv_glmnet_fit <- glmnetcr(data.matrix(cvtrain),as.factor(cvtrainclass), alpha = alpha,lambda=lambda_sequence)
+      valid_pred <- predict(inner_cv_glmnet_fit, data.matrix(cvtest), s = lambda_sequence, type = "response")
+      
+      #check order of predictions
+      #order_of_class <- attr(valid_pred,'dimnames')[[2]]
+      #new_order <- c(which(order_of_class=='1'),which(order_of_class=='2'),which(order_of_class=='3'))
+      foldresult <- rbindlist(lapply(c(1:length(lambda_sequence)),function(x) { 
+        data.table(repl=i,fold=j,lambda=lambda_sequence[x],valid_pred$probs[,x],result=cvtestclass)
+        }))
+      cvresult[[iter]]=foldresult
+      iter=iter+1
+    }
+  }
+  
+  cvresult <- rbindlist(cvresult)
+  cvresult$result <- convert(cvresult$result)
+  names(cvresult) <- c("repl", "fold", "lambda", "odd1", "oddX", "odd2", "result")
+  
+  # creating actual targets for rps calculations
+  cvresult[,pred_id:=1:.N]
+  outcome_for_rps <- data.table::dcast(cvresult,pred_id~result,value.var='pred_id')
+  outcome_for_rps[,pred_id:=NULL]
+  outcome_for_rps[is.na(outcome_for_rps)]=0
+  outcome_for_rps[outcome_for_rps>0]=1
+  setcolorder(outcome_for_rps, c("odd1", "oddX", "odd2"))
+  
+  # calculate RPS
+  cvresult <- cvresult[, RPS := calculate_rps(odd1, oddX, odd2, result), by = 1:nrow(cvresult)]
+  overall_results <- data.table(cvresult[,list(repl,fold,lambda,RPS)])
+  
+  # summarize performance for each lambda
+  overall_results_summary <- overall_results[,list(RPS=mean(RPS)),list(repl,fold,lambda)]
+  
+  # find best lambdas as in glmnet based on RPS
+  overall_results_summary <- overall_results_summary[,list(meanRPS=mean(RPS),sdRPS=sd(RPS)),list(lambda)]
+  overall_results_summary[,RPS_mean_lb := meanRPS - sdRPS]
+  overall_results_summary[,RPS_mean_ub := meanRPS + sdRPS]
+  
+  cv_lambda_min <- overall_results_summary[which.min(meanRPS)]$lambda
+  
+  semin <- overall_results_summary[lambda==cv_lambda_min]$RPS_mean_ub
+  cv_lambda.1se <- max(overall_results_summary[meanRPS<semin]$lambda)
+  
+  cvResultsSummary = list(lambda.min =cv_lambda_min, lambda.1se = cv_lambda.1se,
+                          meanRPS_min=overall_results_summary[lambda==cv_lambda_min]$meanRPS,
+                          meanRPS_1se=overall_results_summary[lambda==cv_lambda.1se]$meanRPS)
+
+  
+  fit <- glmnet(as.matrix(train),as.factor(train_class),family="multinomial", alpha = alpha,lambda=cvResultsSummary$lambda.min)
+  predicted_probabilities <- predict(fit, as.matrix(test), type = "response")
+  output_prob <- data.table(predicted_probabilities[,,])
+  colnames(output_prob) <- c("odd1", "oddX", "odd2")
+  output_prob$matchId <- wide_test$matchId
+  setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
+  output_prob <- comparison(output_prob, trace = T)
+  fit$bestTune <- data.frame(lambda = fit$lambda)
+  return(list(fit, output_prob))
+}
+
 
 
 gradient_boosting <- function(train, test, wide_test){
@@ -239,7 +343,7 @@ gradient_boosting <- function(train, test, wide_test){
                              summaryFunction = rpsCaret)
   tune_Grid <-  expand.grid(interaction.depth = c(1,3,5),
                             n.trees = (1:10)*50,
-                            shrinkage = c(0.01, 0.05, 0.1, 0.15),
+                            shrinkage = c(0.01, 0.05, 0.1),
                             n.minobsinnode = c(5,10))
   #plot(tune_Grid) #Error in plot.new() : figure margins too large 
   #plot(gbmFit, plotType = "level")
@@ -255,7 +359,7 @@ gradient_boosting <- function(train, test, wide_test){
   #colnames(output_prob) <- c("odd1", "oddX", "odd2")
   output_prob$matchId <- wide_test$matchId
   setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
-  output_prob <- comparison(output_prob, trace = TRUE)
+  output_prob <- comparison(output_prob, trace = T)
   return(list(fit, output_prob))
 }
 
@@ -276,7 +380,7 @@ decision_tree <- function(train, test, wide_test){
   #colnames(output_prob) <- c("odd1", "oddX", "odd2")
   output_prob$matchId <- wide_test$matchId
   setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
-  output_prob <- comparison(output_prob, trace = FALSE)
+  output_prob <- comparison(output_prob, trace = T)
   return(list(fit, output_prob))
 }
 

@@ -19,7 +19,7 @@ environment(rpsCaret) <- asNamespace('caret')
 
 # unique(matches[season == '2018-2019']$week)
 # matches_df = next_matches[date == '2018-12-16']
-# matches_df = matches[week == 48][season == '2018-2019']
+# matches_df = matches[season == '2018-2019']
 # details_df = shin
 models <- function(matches_df, details_df,
                    model_type = c("random_forest", "glmnet","gradient_boosting","decision_tree"),
@@ -38,7 +38,9 @@ models <- function(matches_df, details_df,
     wide_test <- wide_test[complete.cases(wide_test)]
   }
   min_date <- min(matches_df[matchId %in% test_match_ids]$date)
-  prev_date <- 365
+  if(nrow(wide_test) > 25){prev_date <- 1000}
+  if(nrow(wide_test) <= 25){prev_date <- 365}
+
   lower_date <- as.Date(min_date) - prev_date
   train_match_ids <- matches[date < min_date][date > lower_date]$matchId
   train_data <- details_df[matchId %in% train_match_ids]

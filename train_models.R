@@ -1,7 +1,6 @@
 # Continuation Ratio Model for Ordinal Data - vglmContRatio
 # Cumulative Probability Model for Ordinal Data - vglmCumulative
 # Penalized Ordinal Regression - ordinalNet
-# glmnetcr - ordered glmnet
 
 
 rpsCaret<- function (data, lev = NULL, model = NULL) { 
@@ -20,7 +19,7 @@ environment(rpsCaret) <- asNamespace('caret')
 
 # unique(matches[season == '2018-2019']$week)
 # matches_df = next_matches[date == '2018-12-16']
-# matches_df = matches[week == 42][season == '2018-2019']
+# matches_df = matches[week == 48][season == '2018-2019']
 # details_df = shin
 models <- function(matches_df, details_df,
                    model_type = c("random_forest", "glmnet","gradient_boosting","decision_tree"),
@@ -59,9 +58,17 @@ models <- function(matches_df, details_df,
       fit <- random_forest(train, test, wide_test)
     }
   }
+  if (model_type == "vglm") {
+    if (is_ordered){
+      fit <- vglmCumulative(train, test, wide_test)    
+    }
+    if(!is_ordered){
+      print("Vglm works with ordinal variables")
+    }
+  }
   if (model_type == "glmnet") {
     if (is_ordered) {
-      ### ordinal glmnet, glmnetcr
+      print("Ordered GLMNET is not implemented yet.")
     }
     if (!is_ordered){
       fit <- train_glmnet(train, test, wide_test)
@@ -146,10 +153,10 @@ ord_rf <- function(train, test, wide_test){
   # values used for these hyperparameters were seen to be in a reasonable 
   # range and the results seem to be quite robust with respect to the 
   # choices of the hyperparameter values.
-  ordforres <- ordfor(depvar="winner", 
+  fit <- ordfor(depvar="winner", 
                       data=train, nsets=1000, ntreeperdiv=400,
                       ntreefinal=5000, perffunction = "equal")
-  preds <- predict(ordforres, newdata=test, "prob")
+  preds <- predict(fit, newdata=test, "prob")
   output_prob <- data.table(preds$classfreqtree)
   output_prob$matchId <- wide_test$matchId
   setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
@@ -275,13 +282,13 @@ train_glmnetcr <- function(train, test, wide_test,
       cvtestclass <- train_class[testindices] 
       
       inner_cv_glmnet_fit <- glmnetcr(data.matrix(cvtrain),as.factor(cvtrainclass), alpha = alpha,lambda=lambda_sequence)
-      valid_pred <- predict(inner_cv_glmnet_fit, data.matrix(cvtest), s = lambda_sequence, type = "response")
+      valid_pred <- predict(inner_cv_glmnet_fit, data.matrix(cvtest), s = lambda_sequence, type = "prob")
       
       #check order of predictions
       #order_of_class <- attr(valid_pred,'dimnames')[[2]]
       #new_order <- c(which(order_of_class=='1'),which(order_of_class=='2'),which(order_of_class=='3'))
       foldresult <- rbindlist(lapply(c(1:length(lambda_sequence)),function(x) { 
-        data.table(repl=i,fold=j,lambda=lambda_sequence[x],valid_pred$probs[,x],result=cvtestclass)
+        data.table(repl=i,fold=j,lambda=lambda_sequence[x],valid_pred$probs[,,x],result=cvtestclass)
         }))
       cvresult[[iter]]=foldresult
       iter=iter+1
@@ -289,8 +296,8 @@ train_glmnetcr <- function(train, test, wide_test,
   }
   
   cvresult <- rbindlist(cvresult)
-  cvresult$result <- convert(cvresult$result)
-  names(cvresult) <- c("repl", "fold", "lambda", "odd1", "oddX", "odd2", "result")
+  #cvresult$result <- convert(cvresult$result)
+  #names(cvresult) <- c("repl", "fold", "lambda", "odd1", "oddX", "odd2", "result")
   
   # creating actual targets for rps calculations
   cvresult[,pred_id:=1:.N]
@@ -322,8 +329,8 @@ train_glmnetcr <- function(train, test, wide_test,
                           meanRPS_1se=overall_results_summary[lambda==cv_lambda.1se]$meanRPS)
 
   
-  fit <- glmnet(as.matrix(train),as.factor(train_class),family="multinomial", alpha = alpha,lambda=cvResultsSummary$lambda.min)
-  predicted_probabilities <- predict(fit, as.matrix(test), type = "response")
+  fit <- glmnetcr(as.matrix(train),as.factor(train_class), alpha = alpha,lambda=cvResultsSummary$lambda.min)
+  predicted_probabilities <- predict(fit, data.matrix(test), type = "response")
   output_prob <- data.table(predicted_probabilities[,,])
   colnames(output_prob) <- c("odd1", "oddX", "odd2")
   output_prob$matchId <- wide_test$matchId
@@ -369,7 +376,7 @@ decision_tree <- function(train, test, wide_test){
   fit <-  train(y = train$winner, 
                 x = train[,-c("winner")], 
                 method = "rpart", 
-                tuneGrid = expand.grid(.cp = c((1:14)*0.005)),
+                tuneGrid = expand.grid(.cp = c((1:7)*0.03)),
                 trControl = trainControl(method = "repeatedcv", 
                                          number = 10, 
                                          repeats = 10,
@@ -384,7 +391,30 @@ decision_tree <- function(train, test, wide_test){
   return(list(fit, output_prob))
 }
 
+vglmCumulative <- function(train, test, wide_test){
+  set.seed(1234)
+  control <- trainControl(method = "cv", 
+                          number = 10, 
+                          search = "random",
+                          classProbs = TRUE,
+                          summaryFunction = rpsCaret)
+  tunegrid <- expand.grid(parallel = TRUE, link = c("logit", "probit"))
 
+  
+  fit <- train(winner~., 
+               data=train, 
+               method="vglmCumulative", 
+               trControl=control,
+               preProc = c("center", "scale"),
+               importance = T)
+  
+  output_prob <- predict(fit, test, "prob")
+  colnames(output_prob) <- c("odd1", "oddX", "odd2")
+  output_prob$matchId <- wide_test$matchId
+  setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
+  output_prob <- comparison(output_prob, trace = T)
+  return(list(fit, output_prob))
+}
 
 
 

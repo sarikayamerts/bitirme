@@ -151,11 +151,52 @@ shin_changes_insider <- merge(shin_changes, insider, by = c("matchId", "bookmake
 source("train_models.R")
 
 for (k in list(shin, shin_insider, shin_changes_insider)){
-  for (n in noquote(unique(matches[season == "2018-2019"]$week))){
     for (i in c("random_forest", "decision_tree", "gradient_boosting", "glmnet")){
-      AB <- models(matches_df = matches[week == n][season == '2018-2019'],
+      model_new <- models(matches_df = matches[season == '2018-2019'],
                    details_df = k,
                    model_type = i, is_ordered = FALSE)
     }
-  }
+    for (i in c("random_forest", "gradient_boosting", "vglm")){
+      model_new <- models(matches_df = matches[season == '2018-2019'],
+                          details_df = k,
+                          model_type = i, is_ordered = TRUE)
+    }
+  
+    # for (i in c("random_forest", "decision_tree", "gradient_boosting", "glmnet")){
+    #   model_new <- models(matches_df = matches[season == '2017-2018'],
+    #                details_df = k,
+    #                model_type = i, is_ordered = FALSE)
+    # }
+    # for (i in c("random_forest", "gradient_boosting")){
+    #   model_new <- models(matches_df = matches[season == '2017-2018'],
+    #                       details_df = k,
+    #                       model_type = i, is_ordered = TRUE)
+    # }
 }
+
+# for (k in list(shin, shin_insider, shin_changes_insider)){
+#   for (n in noquote(unique(matches[season == "2018-2019"]$week))){
+#     for (i in c("random_forest", "decision_tree", "gradient_boosting", "glmnet")){
+#       model_new <- models(matches_df = matches[week == 48][week == n][season == '2018-2019'],
+#                           details_df = k,
+#                           model_type = i, is_ordered = FALSE)
+#     }
+#     for (i in c("random_forest", "gradient_boosting", "vglm")){
+#       model_new <- models(matches_df = matches[week == 48][week == n][season == '2018-2019'],
+#                           details_df = k,
+#                           model_type = i, is_ordered = TRUE)
+#     }
+#   }
+#   for (n in noquote(unique(matches[season == "2017-2018"]$week))){
+#     for (i in c("random_forest", "decision_tree", "gradient_boosting", "glmnet")){
+#       model_new <- models(matches_df = matches[week == n][season == '2017-2018'],
+#                           details_df = k,
+#                           model_type = i, is_ordered = FALSE)
+#     }
+#     for (i in c("random_forest", "gradient_boosting")){
+#       model_new <- models(matches_df = matches[week == n][season == '2017-2018'],
+#                           details_df = k,
+#                           model_type = i, is_ordered = TRUE)
+#     }
+#   }
+# }

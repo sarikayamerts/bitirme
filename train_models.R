@@ -422,32 +422,61 @@ vglmCumulative <- function(train, test, wide_test){
   return(list(fit, output_prob))
 }
 
+best_model <- function(train, test, wide_test){
+  fitControl <- trainControl(method = "repeatedcv", 
+                             number = 10, 
+                             repeats = 3,
+                             classProbs = T,
+                             summaryFunction = rpsCaret)
+  tune_Grid <-  expand.grid(interaction.depth = 1,
+                            n.trees = c(200),
+                            shrinkage = 0.01,
+                            n.minobsinnode = 5)
+  #plot(tune_Grid) #Error in plot.new() : figure margins too large 
+  #plot(gbmFit, plotType = "level")
+  set.seed(1234)
+  fit <- train(winner ~ ., 
+               data = train,
+               method = "gbm",
+               trControl = fitControl,
+               verbose = FALSE,
+               tuneGrid = tune_Grid)
+  
+  output_prob <- predict(fit, test, "prob")
+  #colnames(output_prob) <- c("odd1", "oddX", "odd2")
+  output_prob$matchId <- wide_test$matchId
+  setcolorder(output_prob, c("matchId", "odd1", "oddX", "odd2"))
+  output_prob <- comparison(output_prob, trace = T)
+  return(list(fit, output_prob))
+}
 
 
-# bet_on <- function(){
-#   best_bookmaker <- testRPS$bookmaker[1]
-#   portfolio_df <- last[bookmaker == best_bookmaker][matchId %in% predictions[["predictions"]]$matchId][,-4]
-#   bookmaker_pred <- widening(portfolio_df, best_bookmaker)[,c(1,5,2,4,3)]
-#   our_pred <- predictions[["predictions"]]
-#   colnames(bookmaker_pred) <- colnames(our_pred)
-#   differences <- merge(our_pred, bookmaker_pred, on = c("matchId"))
-#   differences$odd1_diff <- differences[, odd1.x-odd1.y, by = 1:nrow(differences)]$V1
-#   differences$oddX_diff <- differences[, oddX.x-oddX.y, by = 1:nrow(differences)]$V1
-#   differences$odd2_diff <- differences[, odd2.x-odd2.y, by = 1:nrow(differences)]$V1
-#   we_bet_on <- convert(max.col(differences[,c(10:12)], 'first'))
-#   actual_outcome <- differences$winner.x
-#   results <- as.data.table(cbind(differences$matchId, we_bet_on, actual_outcome, matrix(1, 10, 3)))
-#   colnames(results) <- c("matchId", "we_bet_on", "actual_outcome", "odd", "bet_amount", "on_hand")
-#   
-#   for (i in 1:nrow(results)){
-#     results$odd[i] <- last(details[(matchId == results$matchId[i]) & (bookmaker == "12BET") & (oddtype == results$we_bet_on[i])])$odd
-#     if(results$we_bet_on[i] == results$actual_outcome[i]){
-#       results$on_hand[i] <- as.integer(results$bet_amount[i]) * as.double(results$odd[i])
-#     }
-#     else{
-#       results$on_hand[i] <- 0
-#     }
-#   }
-#   print(results)
-# }
-# 
+odd_strategy <- function(){
+  best_bookmaker <- "Pinnacle"
+  portfolio_df <- last[bookmaker == best_bookmaker][matchId %in% play$matchId][,-4]
+  odds <- details[bookmaker == "Pinnacle"][matchId %in% play$matchId]
+  key(odds) <- c("matchId", "oddtype")
+  last_odds <- odds[unique(odds[,key(odds), with = FALSE]), mult = 'last']
+  last_oddsX <- last_odds[oddtype == "oddX"]
+  final <- merge(play, last_oddsX, by = "matchId")
+  final$initial <- 10
+  final$onhand <- 0
+  final$cumulative <- 0
+  final$net <- 0
+  
+  if (final$winner[1] == "oddX"){
+    final$onhand[1] <- final$odd[1] * 10
+
+  }
+  for (i in (2:nrow(final))){
+    if (final$winner[i] == "oddX"){
+      final$onhand[i] <- final$odd[i] * 10
+    }
+    final$cumulative[i] <- final$onhand[i] + final$cumulative[i-1]
+  }
+  for (i in (1:nrow(final))){
+    final$net[i] <- final$cumulative[i] - i * 10
+  }
+  final
+}
+

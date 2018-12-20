@@ -5,7 +5,7 @@
 # rps(obs = c(1), pred = matrix(c(0.3, 0.5, 0.2), nrow = 1))
 
 calculate_rps <- function(a,b,c,d){
-  if(is.na(a) || is.na(b) || is.na(c)){
+  if(is.na(a) || is.na(b) || is.na(c) || is.na(d)){
     as.double(NA)
   }
   else{
@@ -23,7 +23,7 @@ calculate_rps <- function(a,b,c,d){
 
 #for over under
 calculate_rps2 <- function(a,b,c){
-  if(is.na(a) || is.na(b)){
+  if(is.na(a) || is.na(b) || is.na(c)){
     as.double(NA)
   }
   else{

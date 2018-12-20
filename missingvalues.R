@@ -10,8 +10,12 @@
 #columnsToKeep = grep(paste(bookiesToKeep,collapse="|"),names(details),value=T)
 #details = details[,c('matchId',columnsToKeep),with=F]
 
-bookiesToKeep = c("10Bet", "12BET", "188BET", "BetVictor", "Betclic", "Betsafe", "Betsson", "Betway", "Pinnacle", "SBOBET", "Unibet", "William Hill", "bet365", "bet-at-home", "bwin")
-#bookiesToKeep = c("10Bet", "188BET", "Pinnacle")
+ordering <- lastrps[matchId %in% unique(matches[season == '2017-2018']$matchId)][, .(var = mean(Shin_RPS, na.rm = TRUE)), by = c("bookmaker")]
+ordering <- ordering[order(var)]
+rm(ordering)
+
+#bookiesToKeep = c("10Bet", "12BET", "188BET", "BetVictor", "Betclic", "Betsafe", "Betsson", "Betway", "Pinnacle", "SBOBET", "Unibet", "William Hill", "bet365", "bet-at-home", "bwin")
+bookiesToKeep = c("1xBet", "youwin", "12BET", "bet365", "SBOBET", "10Bet", "Pinnacle", "BetVictor", "Betclic", "Betsafe", "Betsson")
 subsetBookies <- function(arr, df){
   df <- df[bookmaker %in% arr]
   df

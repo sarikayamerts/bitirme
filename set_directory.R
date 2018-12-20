@@ -16,5 +16,13 @@ set_directory <- function(name){
       setwd("C:/Users/Hp/Desktop/Bitirme/bitirme")
     }
   }
+  if (grepl("mustafa", toString(getwd()))){
+    if (name == "data"){
+      setwd()
+    }
+    else if (name == "code"){
+      setwd()
+    }
+  }
 }
   

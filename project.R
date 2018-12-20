@@ -212,3 +212,22 @@ for (k in list(shin, shin_insider, shin_changes_insider)){
 #     }
 #   }
 # }
+
+model_A_gbm_F <- models(matches_df = matches[week > 47][season == '2018-2019'],
+                    details_df = shin,
+                    model_type = "gradient_boosting", is_ordered = FALSE)
+model_A_gbm_T <- models(matches_df = matches[week > 47][season == '2018-2019'],
+                        details_df = shin,
+                        model_type = "gradient_boosting", is_ordered = TRUE)
+model_AB_gbm_F <- models(matches_df = matches[week > 47][season == '2018-2019'],
+                        details_df = shin_insider,
+                        model_type = "gradient_boosting", is_ordered = FALSE)
+model_AB_gbm_T <- models(matches_df = matches[week > 47][season == '2018-2019'],
+                        details_df = shin_insider,
+                        model_type = "gradient_boosting", is_ordered = TRUE)
+model_ABC_gbm_F <- models(matches_df = matches[week > 47][season == '2018-2019'],
+                         details_df = shin_changes_insider,
+                         model_type = "gradient_boosting", is_ordered = FALSE)
+model_ABC_gbm_T <- models(matches_df = matches[week > 47][season == '2018-2019'],
+                         details_df = shin_changes_insider,
+                         model_type = "gradient_boosting", is_ordered = TRUE)

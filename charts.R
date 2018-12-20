@@ -8,6 +8,10 @@ plot_ly(data = first, x = ~bookmaker, y = ~Shin_RPS, color = ~season, type = "bo
   layout(boxmode = "group", 
          title = 'BoxPlot of Shin RPS (First Data)')
 
+plot_ly(data = df_year, x = ~TrainSeason, y = ~RPS, color = ~Test) %>%
+  layout(boxmode = "group", 
+         title = 'BoxPlot of RPS - Train Length Relation\n Decision Tree (Shin')
+
 plot_ly(data = first, x = ~season, y = ~Shin_RPS, color = ~bookmaker, type = "box") %>%
   layout(boxmode = "group")
 

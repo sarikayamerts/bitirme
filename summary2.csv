@@ -147,3 +147,9 @@ random_forest,A+B+C,FALSE,7 weeks,2018-2019,77,NA,NA,0.204480712328767, mtry 4.5
 decision_tree,A+B+C,FALSE,7 weeks,2018-2019,77,NA,NA,0.167138643186288, cp 0.06,2018-12-19 02:32:20
 gradient_boosting,A+B+C,FALSE,7 weeks,2018-2019,77,NA,NA,0.167830766579972, n.trees 200 interaction.depth 1 shrinkage 0.01 n.minobsinnode 10,2018-12-19 02:58:08
 glmnet,A+B+C,FALSE,7 weeks,2018-2019,77,NA,NA,0.186260950477865, lambda 0.0129794999695638,2018-12-19 02:59:34
+gradient_boosting,A,FALSE,3 weeks,2018-2019,37,2017-11-30,2018-11-30,0.182837004349646, n.trees 150 interaction.depth 1 shrinkage 0.01 n.minobsinnode 5,2018-12-19 14:01:59
+gradient_boosting,A,TRUE,3 weeks,2018-2019,37,2017-11-30,2018-11-30,0.181578035567084, n.trees 200 interaction.depth 1 shrinkage 0.01 n.minobsinnode 5,2018-12-19 14:10:28
+gradient_boosting,A+B,FALSE,3 weeks,2018-2019,37,2017-11-30,2018-11-30,0.18383204520609, n.trees 150 interaction.depth 1 shrinkage 0.01 n.minobsinnode 10,2018-12-19 14:21:14
+gradient_boosting,A+B,TRUE,3 weeks,2018-2019,37,2017-11-30,2018-11-30,0.186020278941825, n.trees 200 interaction.depth 1 shrinkage 0.01 n.minobsinnode 10,2018-12-19 14:33:01
+gradient_boosting,A+B+C,FALSE,3 weeks,2018-2019,37,2017-11-30,2018-11-30,0.174020771980268, n.trees 250 interaction.depth 1 shrinkage 0.01 n.minobsinnode 10,2018-12-19 14:50:09
+gradient_boosting,A+B+C,TRUE,3 weeks,2018-2019,37,2017-11-30,2018-11-30,0.17558222607461, n.trees 250 interaction.depth 1 shrinkage 0.01 n.minobsinnode 10,2018-12-19 15:10:51

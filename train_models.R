@@ -18,12 +18,12 @@ rpsCaret<- function (data, lev = NULL, model = NULL) {
 environment(rpsCaret) <- asNamespace('caret')
 
 # unique(matches[season == '2018-2019']$week)
-# matches_df = next_matches[date == '2018-12-16']
-# matches_df = matches[season == '2018-2019'][week == 48]
-# details_df = shin
+# matches_df = next_matches[week == 51]
+# matches_df = matches[season == '2018-2019']
+# details_df = shin_changes_insider
 models <- function(matches_df, details_df,
                    model_type = c("random_forest", "glmnet","gradient_boosting","decision_tree"),
-                   is_ordered = FALSE) {
+                   is_ordered = FALSE, is_best_model = FALSE) {
   
   test_match_ids <- matches_df$matchId
   test_data <- details_df[matchId %in% test_match_ids]
@@ -38,8 +38,8 @@ models <- function(matches_df, details_df,
     wide_test <- wide_test[complete.cases(wide_test)]
   }
   min_date <- min(matches_df[matchId %in% test_match_ids]$date)
-  if(nrow(wide_test) > 25){prev_date <- 1000}
-  if(nrow(wide_test) <= 25){prev_date <- 365}
+  if(nrow(wide_test) > 40){prev_date <- 1000}
+  if(nrow(wide_test) <= 40){prev_date <- 365}
 
   lower_date <- as.Date(min_date) - prev_date
   train_match_ids <- matches[date < min_date][date > lower_date]$matchId
@@ -51,39 +51,45 @@ models <- function(matches_df, details_df,
   test <- wide_test[,-c("matchId", "winner", "date", "week", "season")]
 
   if (is_ordered){train$winner <- ordered(train$winner, levels = c("odd1", "oddX", "odd2"))}
-  print(paste(model_type, ", is_ordered", is_ordered))
+  print(paste(model_type, "is_ordered", is_ordered))
   
+  if(is_best_model){
+    fit <- best_model(train, test, wide_test, "gradient_boosting")
+  }
   
-  if (model_type == "random_forest") {
-    if (is_ordered){
-      fit <- ord_rf(train, test, wide_test)    
+  if(!is_best_model){
+    if (model_type == "random_forest") {
+      if (is_ordered){
+        fit <- ord_rf(train, test, wide_test)    
+      }
+      if(!is_ordered){
+        fit <- random_forest(train, test, wide_test)
+      }
     }
-    if(!is_ordered){
-      fit <- random_forest(train, test, wide_test)
+    if (model_type == "vglm") {
+      if (is_ordered){
+        fit <- vglmCumulative(train, test, wide_test)    
+      }
+      if(!is_ordered){
+        print("Vglm works with ordinal variables")
+      }
+    }
+    if (model_type == "glmnet") {
+      if (is_ordered) {
+        print("Ordered GLMNET is not implemented yet.")
+      }
+      if (!is_ordered){
+        fit <- train_glmnet(train, test, wide_test)
+      }
+    }
+    if (model_type == "gradient_boosting") {
+      fit <- gradient_boosting(train, test, wide_test)
+    }
+    if (model_type == "decision_tree") {
+      fit <- decision_tree(train, test, wide_test)
     }
   }
-  if (model_type == "vglm") {
-    if (is_ordered){
-      fit <- vglmCumulative(train, test, wide_test)    
-    }
-    if(!is_ordered){
-      print("Vglm works with ordinal variables")
-    }
-  }
-  if (model_type == "glmnet") {
-    if (is_ordered) {
-      print("Ordered GLMNET is not implemented yet.")
-    }
-    if (!is_ordered){
-      fit <- train_glmnet(train, test, wide_test)
-    }
-  }
-  if (model_type == "gradient_boosting") {
-    fit <- gradient_boosting(train, test, wide_test)
-  }
-  if (model_type == "decision_tree") {
-    fit <- decision_tree(train, test, wide_test)
-  }
+
   ourRPS <- mean(fit[[2]]$RPS)
   preds <- fit[[2]]
   fit <- fit[[1]]
@@ -399,11 +405,11 @@ decision_tree <- function(train, test, wide_test){
 
 vglmCumulative <- function(train, test, wide_test){
   set.seed(1234)
-  control <- trainControl(method = "cv", 
+  control <- trainControl(method = "repeatedcv", 
                           number = 10, 
-                          search = "random",
+                          repeats = 3,
                           classProbs = TRUE,
-                          summaryFunction = rpsCaret)
+                          savePredictions = T)
   tunegrid <- expand.grid(parallel = TRUE, link = c("logit", "probit"))
 
   
@@ -411,7 +417,6 @@ vglmCumulative <- function(train, test, wide_test){
                data=train, 
                method="vglmCumulative", 
                trControl=control,
-               preProc = c("center", "scale"),
                importance = T)
   
   output_prob <- predict(fit, test, "prob")
@@ -422,26 +427,56 @@ vglmCumulative <- function(train, test, wide_test){
   return(list(fit, output_prob))
 }
 
-best_model <- function(train, test, wide_test){
-  fitControl <- trainControl(method = "repeatedcv", 
-                             number = 10, 
-                             repeats = 3,
-                             classProbs = T,
-                             summaryFunction = rpsCaret)
-  tune_Grid <-  expand.grid(interaction.depth = 1,
-                            n.trees = c(200),
-                            shrinkage = 0.01,
-                            n.minobsinnode = 5)
-  #plot(tune_Grid) #Error in plot.new() : figure margins too large 
-  #plot(gbmFit, plotType = "level")
-  set.seed(1234)
-  fit <- train(winner ~ ., 
-               data = train,
-               method = "gbm",
-               trControl = fitControl,
-               verbose = FALSE,
-               tuneGrid = tune_Grid)
-  
+best_model <- function(train, test, wide_test, best_name){
+
+  if(best_name == "gradient_boosting"){
+    fitControl <- trainControl(method = "repeatedcv", 
+                               number = 10, 
+                               repeats = 3,
+                               classProbs = T,
+                               summaryFunction = rpsCaret)
+    tune_Grid <-  expand.grid(interaction.depth = 1,
+                              n.trees = c(200),
+                              shrinkage = 0.01,
+                              n.minobsinnode = 5)
+    set.seed(1234)
+    fit <- train(winner ~ ., 
+                 data = train,
+                 method = "gbm",
+                 trControl = fitControl,
+                 verbose = FALSE,
+                 tuneGrid = tune_Grid)
+  }
+  if(best_name == "decision_tree"){
+    set.seed(1234)
+    fit <-  train(y = train$winner, 
+                  x = train[,-c("winner")], 
+                  method = "rpart", 
+                  tuneGrid = expand.grid(.cp = c(0.06)),
+                  trControl = trainControl(method = "repeatedcv", 
+                                           number = 10, 
+                                           repeats = 10,
+                                           classProbs = T,
+                                           summaryFunction = rpsCaret))
+  }
+  if(best_name == "random_forest"){
+    set.seed(1234)
+    control <- trainControl(method = "repeatedcv", 
+                            number = 10, 
+                            repeats = 3, 
+                            search = "grid",
+                            classProbs = TRUE,
+                            summaryFunction = rpsCaret)
+    tunegrid <- expand.grid(.mtry= 4.5)
+    
+    fit <- train(winner~., 
+                 data=train, 
+                 method="rf", 
+                 tuneGrid=tunegrid, 
+                 trControl=control,
+                 importance = T)
+  }
+
   output_prob <- predict(fit, test, "prob")
   #colnames(output_prob) <- c("odd1", "oddX", "odd2")
   output_prob$matchId <- wide_test$matchId
@@ -451,14 +486,22 @@ best_model <- function(train, test, wide_test){
 }
 
 
-odd_strategy <- function(){
+odd_strategy <- function(output_prob){
+  play <- output_prob[oddX > 0.30][odd2 < 0.315]
+  table(play$winner)
   best_bookmaker <- "Pinnacle"
-  portfolio_df <- last[bookmaker == best_bookmaker][matchId %in% play$matchId][,-4]
+  portfolio_df <- lastrps[bookmaker == best_bookmaker][matchId %in% play$matchId][,c(1,3,4,5)]
+  #portfolio_df <- shin_changes[bookmaker == best_bookmaker][matchId %in% play$matchId]
   odds <- details[bookmaker == "Pinnacle"][matchId %in% play$matchId]
   key(odds) <- c("matchId", "oddtype")
-  last_odds <- odds[unique(odds[,key(odds), with = FALSE]), mult = 'last']
+  last_odds <- odds[unique(odds[,key(odds), with = FALSE]), mult = 'all']
   last_oddsX <- last_odds[oddtype == "oddX"]
+  reshape(last_odds, idvar = c("bookmaker", "matchId"), timevar = "oddtype", direction = "wide" )
+  View(merge(next_matches[,c(1,3,4)], play, by = "matchId")[,c(1:6)])
+  
   final <- merge(play, last_oddsX, by = "matchId")
+  final <- merge(final, portfolio_df, by = "matchId")
+  final <- final[,c(1,2,3,4,10,12,11,5,9)]
   final$initial <- 10
   final$onhand <- 0
   final$cumulative <- 0
@@ -466,7 +509,7 @@ odd_strategy <- function(){
   
   if (final$winner[1] == "oddX"){
     final$onhand[1] <- final$odd[1] * 10
-
+    final$cumulative[1] <- final$onhand[1]
   }
   for (i in (2:nrow(final))){
     if (final$winner[i] == "oddX"){
@@ -477,6 +520,18 @@ odd_strategy <- function(){
   for (i in (1:nrow(final))){
     final$net[i] <- final$cumulative[i] - i * 10
   }
-  final
+  View(final)
+  #tree_fit <- train(winner ~ ., as.matrix(final[,c(2:9)]), "rpart")
+  plot_ly(x = 1:nrow(final), y = final$net, name = "Cumulative Net Gain", type = "scatter", mode = "lines+markers") %>%
+    add_trace(y = final$onhand, name = 'On Hand Money', mode = 'markers') %>%
+    layout(title = '2017-2018 Season Odd Strategy',
+            yaxis = list(title = 'Gain'),
+            xaxis = list(title = 'Match Number'))
+  
+  return(final)
 }
 
+f <- data.frame(ModelName = "Decision Tree",
+                        TrainSeason = "Overall",
+                        Test = "2018-2019 Season",
+                        RPS = 0.179217)

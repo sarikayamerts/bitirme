@@ -1,0 +1,13 @@
+ModelType,Feature,Ordered,Weeks,Seasons,TestSize,TrainStart,TestStart,OurRPS,BestTune,timestamp
+random_forest,A,TRUE,6 weeks,2018-2019,60,2015-12-06,2018-09-01,0.195636863,Default tuning,2018-12-19 01:26:48
+gradient_boosting,A,TRUE,6 weeks,2018-2019,60,2015-12-06,2018-09-01,0.170133802236968, n.trees 50 interaction.depth 1 shrinkage 0.05 n.minobsinnode 5,2018-12-19 01:44:47
+random_forest,A,TRUE,7 weeks,2018-2019,77,2016-01-31,2018-10-27,0.193735892207792,Default tuning,2018-12-19 01:47:45
+gradient_boosting,A,TRUE,7 weeks,2018-2019,77,2016-01-31,2018-10-27,0.174352313320311, n.trees 300 interaction.depth 1 shrinkage 0.01 n.minobsinnode 5,2018-12-19 02:11:50
+random_forest,A+B,TRUE,6 weeks,2018-2019,60,2015-12-06,2018-09-01,0.190490833333333,Default tuning,2018-12-19 02:14:33
+gradient_boosting,A+B,TRUE,6 weeks,2018-2019,60,2015-12-06,2018-09-01,0.176150729278063, n.trees 200 interaction.depth 1 shrinkage 0.01 n.minobsinnode 5,2018-12-19 02:37:07
+random_forest,A+B,TRUE,7 weeks,2018-2019,77,2016-01-31,2018-10-27,0.193394385194805,Default tuning,2018-12-19 02:40:21
+gradient_boosting,A+B,TRUE,7 weeks,2018-2019,77,2016-01-31,2018-10-27,0.177162732636642, n.trees 250 interaction.depth 1 shrinkage 0.01 n.minobsinnode 5,2018-12-19 11:49:19
+random_forest,A+B+C,TRUE,6 weeks,2018-2019,60,2015-12-06,2018-09-01,0.172928236,Default tuning,2018-12-19 11:52:59
+gradient_boosting,A+B+C,TRUE,6 weeks,2018-2019,60,2015-12-06,2018-09-01,0.177049863166736, n.trees 150 interaction.depth 1 shrinkage 0.01 n.minobsinnode 10,2018-12-19 12:19:02
+random_forest,A+B+C,TRUE,7 weeks,2018-2019,77,2016-01-31,2018-10-27,0.170844160821918,Default tuning,2018-12-19 12:22:43
+gradient_boosting,A+B+C,TRUE,7 weeks,2018-2019,77,2016-01-31,2018-10-27,0.16901625859024, n.trees 250 interaction.depth 1 shrinkage 0.01 n.minobsinnode 5,2018-12-19 13:18:27
